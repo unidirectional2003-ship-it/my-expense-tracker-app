@@ -72,31 +72,73 @@
             </div>
 
             <div class="dash-cards">
-              <article class="dash-card dash-card-income">
-                <p class="summary-label">Total Income</p>
-                <p class="meta">Business sales</p>
-                <p class="dash-figure" id="dash-income">Rs 0</p>
-              </article>
-              <article class="dash-card dash-card-spending">
-                <p class="summary-label">Total Spending</p>
-                <p class="meta">Home and business expenses</p>
-                <p class="dash-figure" id="dash-spending">Rs 0</p>
+              <article class="dash-card dash-card-left">
+                <p class="summary-label">Personal balance</p>
+                <p class="meta">This month, after home spending and savings</p>
+                <p class="dash-figure" id="dash-personal-balance">Rs 0</p>
               </article>
               <article class="dash-card dash-card-profit">
-                <p class="summary-label">Business Profit</p>
-                <p class="meta">Income minus business expenses</p>
+                <p class="summary-label">Business balance</p>
+                <p class="meta">All time. Cash received minus business expenses</p>
+                <p class="dash-figure" id="dash-business-balance">Rs 0</p>
+              </article>
+              <article class="dash-card dash-card-income">
+                <p class="summary-label">Earned revenue</p>
+                <p class="meta">This month. Customer advances are not included</p>
+                <p class="dash-figure" id="dash-earned">Rs 0</p>
+              </article>
+              <article class="dash-card dash-card-spending">
+                <p class="summary-label">Business expenses</p>
+                <p class="meta">This month</p>
+                <p class="dash-figure" id="dash-expenses">Rs 0</p>
+              </article>
+              <article class="dash-card dash-card-profit">
+                <p class="summary-label">Actual profit</p>
+                <p class="meta">Earned revenue minus business expenses</p>
                 <p class="dash-figure" id="dash-profit">Rs 0</p>
               </article>
-              <article class="dash-card dash-card-left">
-                <p class="summary-label">Home Money Left</p>
-                <p class="meta">Home budget minus home spending</p>
-                <p class="dash-figure" id="dash-left">Rs 0</p>
+              <article class="dash-card dash-card-income">
+                <p class="summary-label">Personal savings</p>
+                <p class="meta" id="dash-savings-meta">All time, toward your goal</p>
+                <p class="dash-figure" id="dash-savings">Rs 0</p>
+              </article>
+              <article class="dash-card dash-card-spending">
+                <p class="summary-label">Outstanding payments</p>
+                <p class="meta">Earned sales that are not paid in full</p>
+                <p class="dash-figure" id="dash-outstanding">Rs 0</p>
+              </article>
+              <article class="dash-card dash-card-spending">
+                <p class="summary-label">Upcoming bills</p>
+                <p class="meta" id="dash-upcoming-meta">Nothing due later this month</p>
+                <p class="dash-figure" id="dash-upcoming">Rs 0</p>
+              </article>
+              <article class="dash-card dash-card-income">
+                <p class="summary-label">Cash received</p>
+                <p class="meta">This month, including customer advances</p>
+                <p class="dash-figure" id="dash-cash">Rs 0</p>
+              </article>
+              <article class="dash-card dash-card-spending">
+                <p class="summary-label">Customer advances</p>
+                <p class="meta">This month. Cash in, and not profit</p>
+                <p class="dash-figure" id="dash-advances">Rs 0</p>
+              </article>
+              <article class="dash-card dash-card-spending">
+                <p class="summary-label">Total spending</p>
+                <p class="meta">This month. Home and business expenses</p>
+                <p class="dash-figure" id="dash-spending">Rs 0</p>
               </article>
             </div>
 
+            <section class="card" aria-labelledby="outstanding-heading">
+              <h2 id="outstanding-heading">Outstanding customer payments</h2>
+              <p class="meta">Money still owed on earned sales. Update a payment under Business, Income / Sales.</p>
+              <ul class="expense-list" id="outstanding-list"></ul>
+              <p class="empty" id="outstanding-empty">No outstanding customer payments.</p>
+            </section>
+
             <section class="card" aria-labelledby="dash-bars-heading">
               <h2 id="dash-bars-heading">Income vs Expenses</h2>
-              <p class="meta">The last 6 months</p>
+              <p class="meta">The last 6 months. Income is earned revenue, so advances are left out.</p>
               <div class="chart-box">
                 <canvas id="dash-bars" aria-label="Income versus expenses for the last 6 months"></canvas>
               </div>
@@ -125,8 +167,8 @@
             </section>
 
             <section class="card" aria-labelledby="dash-trend-heading">
-              <h2 id="dash-trend-heading">Income trend</h2>
-              <p class="meta">Business income for the last 6 months</p>
+              <h2 id="dash-trend-heading">Revenue and profit trend</h2>
+              <p class="meta">Earned revenue and actual profit for the last 6 months</p>
               <div class="chart-box">
                 <canvas id="dash-trend" aria-label="Business income trend for the last 6 months"></canvas>
               </div>
@@ -151,6 +193,36 @@
                 </div>
               </div>
               <p class="empty" id="dash-budget-empty" hidden>Set a home budget for this month to see how much you have used.</p>
+            </section>
+
+            <section class="card" aria-labelledby="bills-heading">
+              <h2 id="bills-heading">Bills</h2>
+              <p class="meta">The upcoming total counts unpaid bills still due this month. Marking a bill paid does not add an expense.</p>
+              <form id="bill-form" novalidate>
+                <div class="field">
+                  <label for="bill-name">Name</label>
+                  <input id="bill-name" name="name" type="text" maxlength="80" placeholder="Electricity" required />
+                </div>
+                <div class="field">
+                  <label for="bill-amount">Amount</label>
+                  <input id="bill-amount" name="amount" type="number" inputmode="decimal" min="0.01" step="0.01" placeholder="0.00" required />
+                </div>
+                <div class="field">
+                  <label for="bill-due">Due date</label>
+                  <input id="bill-due" name="due" type="date" required />
+                </div>
+                <div class="field">
+                  <label for="bill-space">Space</label>
+                  <select id="bill-space" name="space">
+                    <option value="home">Home</option>
+                    <option value="business">Business</option>
+                  </select>
+                </div>
+                <p class="form-error" id="bill-error" role="alert" hidden></p>
+                <button type="submit" class="primary">Add bill</button>
+              </form>
+              <ul class="expense-list" id="bill-list"></ul>
+              <p class="empty" id="bill-empty">No bills for this month.</p>
             </section>
 
             <section class="card alerts-card" aria-labelledby="dash-alerts-heading" aria-live="polite">
@@ -231,7 +303,24 @@
               </div>
 
               <p class="form-error" id="form-error" role="alert" hidden></p>
-              <button type="submit" class="primary">Add expense</button>
+              <div class="add-actions">
+                <button type="submit" class="primary">Add expense</button>
+                <button
+                  type="button"
+                  class="primary scan-receipt"
+                  id="scan-receipt"
+                  aria-haspopup="dialog"
+                  aria-controls="receipt-modal"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <path
+                      fill="currentColor"
+                      d="M9.2 6.2 7.9 8H5.5A1.5 1.5 0 0 0 4 9.5v8A1.5 1.5 0 0 0 5.5 19h13a1.5 1.5 0 0 0 1.5-1.5v-8A1.5 1.5 0 0 0 18.5 8H16l-1.3-1.8H9.2ZM12 16.6a3.3 3.3 0 1 1 0-6.6 3.3 3.3 0 0 1 0 6.6Z"
+                    />
+                  </svg>
+                  Scan receipt
+                </button>
+              </div>
             </form>
           </section>
 
@@ -278,6 +367,18 @@
                   <label for="sale-customer">Customer name (optional)</label>
                   <input id="sale-customer" name="customer" type="text" maxlength="120" placeholder="Customer name" />
                 </div>
+                <div class="field">
+                  <label for="sale-kind">Type</label>
+                  <select id="sale-kind" name="kind">
+                    <option value="earned">Earned sale</option>
+                    <option value="advance">Customer advance</option>
+                  </select>
+                </div>
+                <div class="field" id="sale-cash-field">
+                  <label for="sale-cash">Cash received now</label>
+                  <input id="sale-cash" name="cash" type="number" inputmode="decimal" min="0" step="0.01" placeholder="Leave blank if paid in full" />
+                </div>
+                <p class="meta" id="sale-kind-help">Leave cash blank when the customer paid in full. Enter 0 when nothing has been paid. The unpaid part stays a receivable and the full sale still counts as earned revenue.</p>
                 <p class="form-error" id="sale-error" role="alert" hidden></p>
                 <button type="submit" class="primary">Add sale</button>
               </form>
@@ -405,15 +506,32 @@
             </div>
             <div class="profit-stats">
               <div class="profit-stat">
-                <p class="summary-label">Total income</p>
-                <p class="profit-figure" id="profit-income">Rs 0</p>
+                <p class="summary-label">Earned revenue</p>
+                <p class="meta">Work delivered this month</p>
+                <p class="profit-figure" id="profit-earned">Rs 0</p>
               </div>
               <div class="profit-stat">
-                <p class="summary-label">Total expenses</p>
+                <p class="summary-label">Cash received</p>
+                <p class="meta">Includes customer advances</p>
+                <p class="profit-figure" id="profit-cash">Rs 0</p>
+              </div>
+              <div class="profit-stat">
+                <p class="summary-label">Customer advances</p>
+                <p class="meta">Not counted as profit</p>
+                <p class="profit-figure" id="profit-advances">Rs 0</p>
+              </div>
+              <div class="profit-stat">
+                <p class="summary-label">Outstanding</p>
+                <p class="meta">Still unpaid on this month’s sales</p>
+                <p class="profit-figure" id="profit-outstanding">Rs 0</p>
+              </div>
+              <div class="profit-stat">
+                <p class="summary-label">Business expenses</p>
                 <p class="profit-figure" id="profit-expenses">Rs 0</p>
               </div>
               <div class="profit-stat">
-                <p class="summary-label">Profit</p>
+                <p class="summary-label">Actual profit</p>
+                <p class="meta">Earned revenue minus expenses</p>
                 <p class="profit-figure" id="profit-amount">Rs 0</p>
               </div>
             </div>
@@ -421,8 +539,140 @@
           </div>
         </div>
       </div>
+
+      <div class="receipt-modal" id="receipt-modal" hidden>
+        <button type="button" class="receipt-backdrop" data-receipt-close aria-label="Close"></button>
+        <div
+          class="receipt-dialog"
+          id="receipt-dialog"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="receipt-title"
+          tabindex="-1"
+        >
+          <h2 id="receipt-title">Scan receipt</h2>
+
+          <div class="receipt-choices" id="receipt-step-choose" data-receipt-step="choose">
+            <p class="meta">Take a photo of a paper receipt, or choose one from your gallery.</p>
+            <label class="primary receipt-choice" for="receipt-camera-input">
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path
+                  fill="currentColor"
+                  d="M9.2 6.2 7.9 8H5.5A1.5 1.5 0 0 0 4 9.5v8A1.5 1.5 0 0 0 5.5 19h13a1.5 1.5 0 0 0 1.5-1.5v-8A1.5 1.5 0 0 0 18.5 8H16l-1.3-1.8H9.2ZM12 16.6a3.3 3.3 0 1 1 0-6.6 3.3 3.3 0 0 1 0 6.6Z"
+                />
+              </svg>
+              Take Photo
+            </label>
+            <label class="primary receipt-choice" for="receipt-gallery-input">
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path
+                  fill="currentColor"
+                  d="M6 5.5h12A1.5 1.5 0 0 1 19.5 7v10a1.5 1.5 0 0 1-1.5 1.5H6A1.5 1.5 0 0 1 4.5 17V7A1.5 1.5 0 0 1 6 5.5Zm0 1.8v8.1l2.7-2.6a1 1 0 0 1 1.4 0L12.4 15l1.6-1.5a1 1 0 0 1 1.4 0l1.6 1.5V7.3H6Zm2.2 2.1a1.2 1.2 0 1 0 0-2.4 1.2 1.2 0 0 0 0 2.4Z"
+                />
+              </svg>
+              Upload from Gallery
+            </label>
+            <p class="meta">If the camera does not open, allow camera access in your browser settings, or upload a photo from your gallery.</p>
+            <p class="form-error" id="receipt-choose-error" role="alert" hidden></p>
+            <p class="meta" id="receipt-choose-status" hidden>Preparing photo...</p>
+            <button type="button" class="edit-cancel" data-receipt-close>Cancel</button>
+            <input
+              id="receipt-camera-input"
+              class="receipt-file"
+              type="file"
+              accept="image/*"
+              capture="environment"
+            />
+            <input id="receipt-gallery-input" class="receipt-file" type="file" accept="image/*" />
+          </div>
+
+          <div id="receipt-step-preview" data-receipt-step="preview" hidden>
+            <img id="receipt-preview" class="receipt-preview" alt="Receipt preview" />
+            <div class="add-actions">
+              <button type="button" class="primary" id="receipt-scan">Scan</button>
+              <button type="button" class="edit-cancel" id="receipt-preview-cancel">Cancel</button>
+            </div>
+          </div>
+
+          <div class="receipt-scanning" id="receipt-step-scanning" data-receipt-step="scanning" hidden>
+            <div class="receipt-spinner" aria-hidden="true"></div>
+            <p class="summary-label" id="receipt-progress" role="status" aria-live="polite">Scanning... 0%</p>
+            <button type="button" class="edit-cancel" id="receipt-scan-cancel">Cancel</button>
+          </div>
+
+          <form id="receipt-form" data-receipt-step="confirm" novalidate hidden>
+            <img id="receipt-confirm-preview" class="receipt-preview" alt="Receipt preview" />
+            <p class="form-error" id="receipt-amount-hint" role="status" hidden></p>
+            <div class="field">
+              <label for="receipt-amount">Amount</label>
+              <input
+                id="receipt-amount"
+                name="amount"
+                type="number"
+                inputmode="decimal"
+                min="0.01"
+                step="0.01"
+                placeholder="0.00"
+                autocomplete="off"
+                required
+              />
+            </div>
+            <div class="field">
+              <label for="receipt-date">Date</label>
+              <input id="receipt-date" name="date" type="date" required />
+            </div>
+            <div class="field">
+              <label for="receipt-merchant">Merchant</label>
+              <input
+                id="receipt-merchant"
+                name="merchant"
+                type="text"
+                maxlength="80"
+                placeholder="Store name"
+                autocomplete="off"
+              />
+            </div>
+            <div class="field">
+              <label for="receipt-category">Category</label>
+              <select id="receipt-category" name="category" required>
+                <option value="">Select a category</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="receipt-note">Notes</label>
+              <input
+                id="receipt-note"
+                name="note"
+                type="text"
+                maxlength="120"
+                placeholder="What was this for?"
+                autocomplete="off"
+                required
+              />
+            </div>
+            <div class="field">
+              <label for="receipt-space">Space</label>
+              <select id="receipt-space" name="space" required>
+                <option value="home">Home</option>
+                <option value="business">Business</option>
+              </select>
+            </div>
+            <p class="form-error" id="receipt-form-error" role="alert" hidden></p>
+            <button type="button" class="edit-cancel" id="receipt-save-without" hidden>Save without photo</button>
+            <div class="add-actions">
+              <button type="submit" class="primary">Save</button>
+              <button type="button" class="edit-cancel" id="receipt-confirm-cancel">Cancel</button>
+            </div>
+          </form>
+
+          <div id="receipt-step-view" data-receipt-step="view" hidden>
+            <img id="receipt-full" class="receipt-full" alt="Receipt photo" />
+            <button type="button" class="primary" data-receipt-close>Close</button>
+          </div>
+        </div>
+      </div>
     </main>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.6/dist/chart.umd.min.js"></script>
-    <script src="script.js"></script>
+    <script type="module" src="js/main.js"></script>
   </body>
 </html>
