@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Expense Tracker</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <main class="app" data-space="home">
+      <header class="intro">
+        <p class="eyebrow">Expense tracker</p>
+        <h1>Home and business, kept apart</h1>
+      </header>
+
+      <div class="folder">
+        <div class="tabs" role="tablist" aria-label="Spaces">
+          <button
+            class="tab is-active"
+            id="tab-home"
+            type="button"
+            role="tab"
+            aria-selected="true"
+            aria-controls="space-panel"
+            data-space="home"
+          >
+            Home
+          </button>
+          <button
+            class="tab"
+            id="tab-business"
+            type="button"
+            role="tab"
+            aria-selected="false"
+            aria-controls="space-panel"
+            tabindex="-1"
+            data-space="business"
+          >
+            Business
+          </button>
+        </div>
+
+        <div class="sheet" id="space-panel" role="tabpanel" aria-labelledby="tab-home">
+          <div class="view-tabs" id="business-views" role="tablist" aria-label="Business" hidden>
+            <button class="view-tab is-active" type="button" role="tab" aria-selected="true" data-view="expenses">Expenses</button>
+            <button class="view-tab" type="button" role="tab" aria-selected="false" data-view="sales">Income / Sales</button>
+            <button class="view-tab" type="button" role="tab" aria-selected="false" data-view="profit">Profit</button>
+          </div>
+
+          <div class="view-tabs" id="home-views" role="tablist" aria-label="Home">
+            <button class="view-tab is-active" type="button" role="tab" aria-selected="true" data-home-view="expenses">Expenses</button>
+            <button class="view-tab" type="button" role="tab" aria-selected="false" data-home-view="summary">Summary</button>
+          </div>
+
+          <section class="summary" data-panel="expenses" aria-live="polite">
+            <p class="summary-label" id="total-label">Total spent at home</p>
+            <p class="summary-amount" id="total">$0.00</p>
+          </section>
+
+          <section class="card" data-panel="expenses" aria-labelledby="add-heading">
+            <h2 id="add-heading">Add an expense</h2>
+            <form id="expense-form" novalidate>
+              <div class="field">
+                <label for="amount">Amount</label>
+                <input
+                  id="amount"
+                  name="amount"
+                  type="number"
+                  inputmode="decimal"
+                  min="0.01"
+                  step="0.01"
+                  placeholder="0.00"
+                  required
+                />
+              </div>
+
+              <div class="field">
+                <label for="category">Category</label>
+                <select id="category" name="category" required>
+                  <option value="">Select a category</option>
+                </select>
+              </div>
+
+              <div class="field">
+                <label for="date">Date</label>
+                <input id="date" name="date" type="date" required />
+              </div>
+
+              <div class="field">
+                <label for="note">Note</label>
+                <input
+                  id="note"
+                  name="note"
+                  type="text"
+                  maxlength="120"
+                  placeholder="What was this for?"
+                  required
+                />
+              </div>
+
+              <div class="field repeat-field">
+                <label class="repeat-label" for="repeats-monthly">
+                  <input id="repeats-monthly" class="repeat-toggle" type="checkbox" />
+                  Repeats every month
+                </label>
+              </div>
+
+              <p class="form-error" id="form-error" role="alert" hidden></p>
+              <button type="submit" class="primary">Add expense</button>
+            </form>
+          </section>
+
+          <section class="card" data-panel="expenses" aria-labelledby="list-heading">
+            <h2 id="list-heading">Expenses</h2>
+            <div class="filters">
+              <div class="field">
+                <label for="search">Search</label>
+                <input
+                  id="search"
+                  type="search"
+                  placeholder="Search by note"
+                  autocomplete="off"
+                />
+              </div>
+              <div class="field">
+                <label for="category-filter">Category</label>
+                <select id="category-filter">
+                  <option value="">All categories</option>
+                </select>
+              </div>
+            </div>
+            <ul class="expense-list" id="expense-list"></ul>
+            <p class="empty" id="empty-state">No home expenses yet. Add one above.</p>
+          </section>
+
+          <div id="sales-panel" data-panel="sales" hidden>
+            <section class="card" aria-labelledby="sale-heading">
+              <h2 id="sale-heading">Income / Sales</h2>
+              <form id="sale-form" novalidate>
+                <div class="field">
+                  <label for="sale-amount">Amount</label>
+                  <input id="sale-amount" name="amount" type="number" inputmode="decimal" min="0.01" step="0.01" placeholder="0.00" required />
+                </div>
+                <div class="field">
+                  <label for="sale-date">Date</label>
+                  <input id="sale-date" name="date" type="date" required />
+                </div>
+                <div class="field">
+                  <label for="sale-note">Note</label>
+                  <input id="sale-note" name="note" type="text" maxlength="120" placeholder="What was this sale?" required />
+                </div>
+                <div class="field">
+                  <label for="sale-customer">Customer name (optional)</label>
+                  <input id="sale-customer" name="customer" type="text" maxlength="120" placeholder="Customer name" />
+                </div>
+                <p class="form-error" id="sale-error" role="alert" hidden></p>
+                <button type="submit" class="primary">Add sale</button>
+              </form>
+            </section>
+            <section class="card" aria-labelledby="sales-list-heading">
+              <h2 id="sales-list-heading">Sales</h2>
+              <ul class="expense-list" id="sale-list"></ul>
+              <p class="empty" id="sale-empty">No sales yet. Add one above.</p>
+            </section>
+          </div>
+
+          <section class="card home-summary" id="home-summary-panel" aria-labelledby="summary-heading" hidden>
+            <h2 id="summary-heading">Summary</h2>
+            <p class="summary-message" id="summary-message">Set a budget for this month, then I will show how you are doing.</p>
+
+            <div class="field">
+              <label for="summary-month">Month</label>
+              <input id="summary-month" name="month" type="month" />
+            </div>
+
+            <form id="budget-form" novalidate>
+              <div class="field">
+                <label for="budget-amount">Total budget</label>
+                <input
+                  id="budget-amount"
+                  name="budget"
+                  class="budget-amount"
+                  type="number"
+                  inputmode="decimal"
+                  min="0.01"
+                  step="0.01"
+                  placeholder="0.00"
+                />
+              </div>
+              <p class="form-error" id="budget-error" role="alert" hidden></p>
+              <button type="submit" class="primary">Save budget</button>
+            </form>
+
+            <div class="home-stats">
+              <div class="home-stat">
+                <p class="summary-label">Total spent</p>
+                <p class="home-figure" id="summary-spent">$0.00</p>
+              </div>
+              <div class="home-stat">
+                <p class="summary-label">Money left</p>
+                <p class="home-figure is-prompt" id="summary-left">Set your budget to see what is left</p>
+              </div>
+            </div>
+
+            <div class="progress-block">
+              <p class="summary-label" id="progress-label">Budget used</p>
+              <div
+                class="progress-track"
+                id="budget-progress"
+                role="progressbar"
+                aria-valuemin="0"
+                aria-valuemax="100"
+                aria-valuenow="0"
+                aria-valuetext="No budget yet"
+              >
+                <div class="progress-fill" id="progress-fill"></div>
+              </div>
+            </div>
+
+            <p class="daily-limit" id="daily-limit">Set your budget to see your daily limit.</p>
+
+            <h3 id="category-heading">Spending by category</h3>
+            <ul class="category-list" id="category-breakdown" aria-labelledby="category-heading"></ul>
+            <p class="empty" id="category-empty">No home expenses this month.</p>
+
+            <section class="savings-card" id="savings-section" aria-labelledby="savings-heading">
+              <h2 id="savings-heading">Savings Goal</h2>
+              <form id="savings-form" novalidate>
+                <div class="field">
+                  <label for="savings-name">Goal name</label>
+                  <input
+                    id="savings-name"
+                    name="name"
+                    type="text"
+                    maxlength="80"
+                    placeholder="Eid shopping"
+                    required
+                  />
+                </div>
+                <div class="field">
+                  <label for="savings-target">Target amount</label>
+                  <input
+                    id="savings-target"
+                    name="target"
+                    type="number"
+                    inputmode="decimal"
+                    min="0.01"
+                    step="0.01"
+                    placeholder="0.00"
+                    required
+                  />
+                </div>
+                <p class="form-error" id="savings-error" role="alert" hidden></p>
+                <button type="submit" class="primary">Save goal</button>
+              </form>
+              <p class="summary-label savings-saved-label">Saved</p>
+              <p class="savings-saved" id="savings-saved">$0.00</p>
+              <p class="meta" id="savings-left">Money left this month: $0.00</p>
+              <button type="button" class="primary" id="add-to-savings">Add to savings</button>
+              <div
+                class="savings-track"
+                id="savings-track"
+                role="progressbar"
+                aria-valuemin="0"
+                aria-valuemax="100"
+                aria-valuenow="0"
+                aria-labelledby="savings-heading"
+              >
+                <div class="savings-fill" id="savings-fill"></div>
+              </div>
+              <p class="meta" id="savings-progress-text">0% of your goal</p>
+            </section>
+          </section>
+
+          <section class="card" id="profit-panel" data-panel="profit" aria-labelledby="profit-heading" hidden>
+            <h2 id="profit-heading">Profit</h2>
+            <div class="field">
+              <label for="profit-month">Month</label>
+              <input id="profit-month" name="month" type="month" />
+            </div>
+            <div class="profit-stats">
+              <div class="profit-stat">
+                <p class="summary-label">Total income</p>
+                <p class="profit-figure" id="profit-income">$0.00</p>
+              </div>
+              <div class="profit-stat">
+                <p class="summary-label">Total expenses</p>
+                <p class="profit-figure" id="profit-expenses">$0.00</p>
+              </div>
+              <div class="profit-stat">
+                <p class="summary-label">Profit</p>
+                <p class="profit-figure" id="profit-amount">$0.00</p>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
+    </main>
+    <script src="script.js"></script>
+  </body>
+</html>
