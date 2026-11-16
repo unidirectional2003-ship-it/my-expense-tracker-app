@@ -18,7 +18,7 @@
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
-    <main class="app" data-space="home">
+    <main class="app" data-space="dashboard">
       <header class="intro">
         <p class="eyebrow">Expense tracker</p>
         <h1>Home and business, kept apart</h1>
@@ -28,11 +28,23 @@
         <div class="tabs" role="tablist" aria-label="Spaces">
           <button
             class="tab is-active"
-            id="tab-home"
+            id="tab-dashboard"
             type="button"
             role="tab"
             aria-selected="true"
             aria-controls="space-panel"
+            data-space="dashboard"
+          >
+            Dashboard
+          </button>
+          <button
+            class="tab"
+            id="tab-home"
+            type="button"
+            role="tab"
+            aria-selected="false"
+            aria-controls="space-panel"
+            tabindex="-1"
             data-space="home"
           >
             Home
@@ -51,7 +63,109 @@
           </button>
         </div>
 
-        <div class="sheet" id="space-panel" role="tabpanel" aria-labelledby="tab-home">
+        <div class="sheet" id="space-panel" role="tabpanel" aria-labelledby="tab-dashboard">
+          <section class="dashboard" id="dashboard-panel" aria-labelledby="dashboard-heading">
+            <h2 id="dashboard-heading">Dashboard</h2>
+            <div class="field">
+              <label for="dashboard-month">Month</label>
+              <input id="dashboard-month" name="month" type="month" />
+            </div>
+
+            <div class="dash-cards">
+              <article class="dash-card dash-card-income">
+                <p class="summary-label">Total Income</p>
+                <p class="meta">Business sales</p>
+                <p class="dash-figure" id="dash-income">Rs 0</p>
+              </article>
+              <article class="dash-card dash-card-spending">
+                <p class="summary-label">Total Spending</p>
+                <p class="meta">Home and business expenses</p>
+                <p class="dash-figure" id="dash-spending">Rs 0</p>
+              </article>
+              <article class="dash-card dash-card-profit">
+                <p class="summary-label">Business Profit</p>
+                <p class="meta">Income minus business expenses</p>
+                <p class="dash-figure" id="dash-profit">Rs 0</p>
+              </article>
+              <article class="dash-card dash-card-left">
+                <p class="summary-label">Home Money Left</p>
+                <p class="meta">Home budget minus home spending</p>
+                <p class="dash-figure" id="dash-left">Rs 0</p>
+              </article>
+            </div>
+
+            <section class="card" aria-labelledby="dash-bars-heading">
+              <h2 id="dash-bars-heading">Income vs Expenses</h2>
+              <p class="meta">The last 6 months</p>
+              <div class="chart-box">
+                <canvas id="dash-bars" aria-label="Income versus expenses for the last 6 months"></canvas>
+              </div>
+              <p class="empty" id="dash-bars-empty" hidden>No income or expenses in the last 6 months.</p>
+            </section>
+
+            <section class="card" aria-labelledby="dash-where-heading">
+              <h2 id="dash-where-heading">Where my money went</h2>
+              <p class="meta">This month’s spending</p>
+              <div class="donut-grid">
+                <div class="donut-block">
+                  <h3>Home and Business</h3>
+                  <div class="chart-box chart-box-donut">
+                    <canvas id="dash-split" aria-label="Spending split between home and business"></canvas>
+                  </div>
+                  <p class="empty" id="dash-split-empty" hidden>No spending this month yet.</p>
+                </div>
+                <div class="donut-block">
+                  <h3>Top categories</h3>
+                  <div class="chart-box chart-box-donut">
+                    <canvas id="dash-categories" aria-label="Top spending categories this month"></canvas>
+                  </div>
+                  <p class="empty" id="dash-categories-empty" hidden>No categories to show for this month.</p>
+                </div>
+              </div>
+            </section>
+
+            <section class="card" aria-labelledby="dash-trend-heading">
+              <h2 id="dash-trend-heading">Income trend</h2>
+              <p class="meta">Business income for the last 6 months</p>
+              <div class="chart-box">
+                <canvas id="dash-trend" aria-label="Business income trend for the last 6 months"></canvas>
+              </div>
+              <p class="empty" id="dash-trend-empty" hidden>No business income in the last 6 months.</p>
+            </section>
+
+            <section class="card" aria-labelledby="dash-budget-heading">
+              <h2 id="dash-budget-heading">Home budget used</h2>
+              <div class="progress-block">
+                <p class="summary-label" id="dash-budget-label">Budget used</p>
+                <div
+                  class="progress-track"
+                  id="dash-budget-track"
+                  role="progressbar"
+                  aria-valuemin="0"
+                  aria-valuemax="100"
+                  aria-valuenow="0"
+                  aria-valuetext="No budget yet"
+                  aria-labelledby="dash-budget-heading"
+                >
+                  <div class="progress-fill" id="dash-budget-fill"></div>
+                </div>
+              </div>
+              <p class="empty" id="dash-budget-empty" hidden>Set a home budget for this month to see how much you have used.</p>
+            </section>
+
+            <section class="card alerts-card" aria-labelledby="dash-alerts-heading" aria-live="polite">
+              <h2 id="dash-alerts-heading">Alerts</h2>
+              <div id="dash-alerts"></div>
+            </section>
+
+            <section class="card" aria-labelledby="dash-activity-heading">
+              <h2 id="dash-activity-heading">Recent activity</h2>
+              <ul class="expense-list" id="dash-activity"></ul>
+              <p class="empty" id="dash-activity-empty" hidden>No activity yet. Home and business entries will show up here.</p>
+            </section>
+          </section>
+
+          <div id="space-content" hidden>
           <div class="view-tabs" id="business-views" role="tablist" aria-label="Business" hidden>
             <button class="view-tab is-active" type="button" role="tab" aria-selected="true" data-view="expenses">Expenses</button>
             <button class="view-tab" type="button" role="tab" aria-selected="false" data-view="sales">Income / Sales</button>
@@ -65,7 +179,7 @@
 
           <section class="summary" data-panel="expenses" aria-live="polite">
             <p class="summary-label" id="total-label">Total spent at home</p>
-            <p class="summary-amount" id="total">$0.00</p>
+            <p class="summary-amount" id="total">Rs 0</p>
           </section>
 
           <section class="card" data-panel="expenses" aria-labelledby="add-heading">
@@ -205,7 +319,7 @@
             <div class="home-stats">
               <div class="home-stat">
                 <p class="summary-label">Total spent</p>
-                <p class="home-figure" id="summary-spent">$0.00</p>
+                <p class="home-figure" id="summary-spent">Rs 0</p>
               </div>
               <div class="home-stat">
                 <p class="summary-label">Money left</p>
@@ -265,8 +379,8 @@
                 <button type="submit" class="primary">Save goal</button>
               </form>
               <p class="summary-label savings-saved-label">Saved</p>
-              <p class="savings-saved" id="savings-saved">$0.00</p>
-              <p class="meta" id="savings-left">Money left this month: $0.00</p>
+              <p class="savings-saved" id="savings-saved">Rs 0</p>
+              <p class="meta" id="savings-left">Money left this month: Rs 0</p>
               <button type="button" class="primary" id="add-to-savings">Add to savings</button>
               <div
                 class="savings-track"
@@ -292,21 +406,23 @@
             <div class="profit-stats">
               <div class="profit-stat">
                 <p class="summary-label">Total income</p>
-                <p class="profit-figure" id="profit-income">$0.00</p>
+                <p class="profit-figure" id="profit-income">Rs 0</p>
               </div>
               <div class="profit-stat">
                 <p class="summary-label">Total expenses</p>
-                <p class="profit-figure" id="profit-expenses">$0.00</p>
+                <p class="profit-figure" id="profit-expenses">Rs 0</p>
               </div>
               <div class="profit-stat">
                 <p class="summary-label">Profit</p>
-                <p class="profit-figure" id="profit-amount">$0.00</p>
+                <p class="profit-figure" id="profit-amount">Rs 0</p>
               </div>
             </div>
           </section>
+          </div>
         </div>
       </div>
     </main>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.6/dist/chart.umd.min.js"></script>
     <script src="script.js"></script>
   </body>
 </html>

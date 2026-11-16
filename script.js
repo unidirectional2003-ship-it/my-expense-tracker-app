@@ -85,11 +85,44 @@ const budgetProgressEl = document.getElementById("budget-progress");
 const progressFillEl = document.getElementById("progress-fill");
 const dailyLimitEl = document.getElementById("daily-limit");
 const categoryBreakdownEl = document.getElementById("category-breakdown");
+const dashboardPanel = document.getElementById("dashboard-panel");
+const spaceContent = document.getElementById("space-content");
+const dashboardMonthInput = document.getElementById("dashboard-month");
+const dashIncomeEl = document.getElementById("dash-income");
+const dashSpendingEl = document.getElementById("dash-spending");
+const dashProfitEl = document.getElementById("dash-profit");
+const dashLeftEl = document.getElementById("dash-left");
+const dashBarsCanvas = document.getElementById("dash-bars");
+const dashBarsEmpty = document.getElementById("dash-bars-empty");
+const dashSplitCanvas = document.getElementById("dash-split");
+const dashSplitEmpty = document.getElementById("dash-split-empty");
+const dashCategoriesCanvas = document.getElementById("dash-categories");
+const dashCategoriesEmpty = document.getElementById("dash-categories-empty");
+const dashTrendCanvas = document.getElementById("dash-trend");
+const dashTrendEmpty = document.getElementById("dash-trend-empty");
+const dashBudgetBlock = document.querySelector("#dashboard-panel .progress-block");
+const dashBudgetLabel = document.getElementById("dash-budget-label");
+const dashBudgetTrack = document.getElementById("dash-budget-track");
+const dashBudgetFill = document.getElementById("dash-budget-fill");
+const dashBudgetEmpty = document.getElementById("dash-budget-empty");
+const dashAlertsEl = document.getElementById("dash-alerts");
+const dashActivityEl = document.getElementById("dash-activity");
+const dashActivityEmpty = document.getElementById("dash-activity-empty");
+const BILLS_KEY = "bills";
+const TAB_ORDER = ["dashboard", "home", "business"];
+const dashCharts = {};
+let chartDefaultsReady = false;
 
-const currency = new Intl.NumberFormat("en-US", {
-  style: "currency",
-  currency: "USD",
-});
+function formatMoney(value) {
+  const amount = Number(value);
+  const safe = Number.isFinite(amount) ? amount : 0;
+  const negative = safe < 0;
+  const rounded = Math.round((Math.abs(safe) + Number.EPSILON) * 100) / 100;
+  const [whole, fraction = "00"] = rounded.toFixed(2).split(".");
+  const withCommas = whole.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  const decimals = fraction === "00" ? "" : `.${fraction.replace(/0$/, "")}`;
+  return `${negative ? "-" : ""}Rs ${withCommas}${decimals}`;
+}
 
 const spaces = loadSpaces();
 if (applyMonthlyRepeats()) saveSpaces();
@@ -97,7 +130,7 @@ const SALES_KEY = "business-sales";
 const SAVINGS_KEY = "home-savings-goal";
 const HOME_BUDGET_KEY = "homeMonthlyBudget";
 const BUDGET_KEY = "home-budgets";
-let currentSpace = "home";
+let currentSpace = "dashboard";
 let businessView = "expenses";
 let homeView = "expenses";
 let sales = loadSales();
@@ -109,6 +142,7 @@ dateInput.value = today();
 saleDateInput.value = today();
 profitMonthInput.value = today().slice(0, 7);
 summaryMonthInput.value = today().slice(0, 7);
+dashboardMonthInput.value = today().slice(0, 7);
 fillCategories();
 fillFilterCategories();
 render();
@@ -118,7 +152,7 @@ tabs.forEach((tab) => {
 });
 
 document.querySelector(".tabs").addEventListener("keydown", (event) => {
-  const names = Object.keys(SPACES);
+  const names = TAB_ORDER;
   const index = names.indexOf(currentSpace);
   if (event.key === "ArrowRight" || event.key === "ArrowDown") {
     event.preventDefault();
@@ -322,6 +356,7 @@ saleListEl.addEventListener("click", (event) => {
 });
 
 profitMonthInput.addEventListener("input", renderProfit);
+dashboardMonthInput.addEventListener("input", renderDashboard);
 
 savingsForm.addEventListener("submit", (event) => {
   event.preventDefault();
@@ -367,7 +402,7 @@ addToSavingsButton.addEventListener("click", () => {
 });
 
 function switchSpace(name) {
-  if (!SPACES[name] || name === currentSpace) return;
+  if (!TAB_ORDER.includes(name) || name === currentSpace) return;
   currentSpace = name;
   editingId = null;
   app.dataset.space = name;
@@ -381,6 +416,11 @@ function switchSpace(name) {
   });
 
   clearInvalid();
+  if (name === "dashboard") {
+    render();
+    return;
+  }
+
   const previousCategory = categoryInput.value;
   fillCategories();
   if (SPACES[name].categories.includes(previousCategory)) {
@@ -392,6 +432,7 @@ function switchSpace(name) {
 }
 
 function fillCategories() {
+  if (!SPACES[currentSpace]) return;
   const placeholder = document.createElement("option");
   placeholder.value = "";
   placeholder.textContent = "Select a category";
@@ -407,6 +448,7 @@ function fillCategories() {
 }
 
 function fillFilterCategories() {
+  if (!SPACES[currentSpace]) return;
   const placeholder = document.createElement("option");
   placeholder.value = "";
   placeholder.textContent = "All categories";
@@ -457,13 +499,19 @@ function saveSpaces() {
 }
 
 function render() {
+  if (currentSpace === "dashboard") {
+    syncBusinessView();
+    renderDashboard();
+    return;
+  }
+
   const expenses = spaces[currentSpace];
   const space = SPACES[currentSpace];
   const total = expenses.reduce((sum, expense) => sum + expense.amount, 0);
   const visible = filterExpenses(expenses);
 
   totalLabel.textContent = space.totalLabel;
-  totalEl.textContent = currency.format(total);
+  totalEl.textContent = formatMoney(total);
   emptyState.textContent =
     expenses.length > 0 && visible.length === 0
       ? "No expenses match your search."
@@ -486,7 +534,7 @@ function render() {
 
       const amount = document.createElement("span");
       amount.className = "amount";
-      amount.textContent = currency.format(expense.amount);
+      amount.textContent = formatMoney(expense.amount);
 
       const meta = document.createElement("p");
       meta.className = "meta";
@@ -508,7 +556,7 @@ function render() {
       editButton.textContent = "Edit";
       editButton.setAttribute(
         "aria-label",
-        `Edit ${expense.category} expense of ${currency.format(expense.amount)}`
+        `Edit ${expense.category} expense of ${formatMoney(expense.amount)}`
       );
 
       const button = document.createElement("button");
@@ -518,7 +566,7 @@ function render() {
       button.textContent = "Delete";
       button.setAttribute(
         "aria-label",
-        `Delete ${expense.category} expense of ${currency.format(expense.amount)}`
+        `Delete ${expense.category} expense of ${formatMoney(expense.amount)}`
       );
 
       top.append(category, amount);
@@ -768,6 +816,11 @@ function today() {
 
 
 function syncBusinessView() {
+  const isDashboard = currentSpace === "dashboard";
+  dashboardPanel.hidden = !isDashboard;
+  spaceContent.hidden = isDashboard;
+  if (isDashboard) return;
+
   const isBusiness = currentSpace === "business";
   const showHomeExpenses = !isBusiness && homeView === "expenses";
 
@@ -844,7 +897,7 @@ function renderSales() {
 
       const amount = document.createElement("span");
       amount.className = "amount";
-      amount.textContent = currency.format(sale.amount);
+      amount.textContent = formatMoney(sale.amount);
 
       const meta = document.createElement("p");
       meta.className = "meta";
@@ -857,7 +910,7 @@ function renderSales() {
       button.textContent = "Delete";
       button.setAttribute(
         "aria-label",
-        `Delete ${sale.customer || "sale"} of ${currency.format(sale.amount)}`
+        `Delete ${sale.customer || "sale"} of ${formatMoney(sale.amount)}`
       );
 
       top.append(title, amount);
@@ -916,17 +969,17 @@ function renderHomeSummary() {
     budgetInput.value = hasBudget ? budget.toFixed(2) : "";
   }
 
-  summarySpentEl.textContent = currency.format(spent);
+  summarySpentEl.textContent = formatMoney(spent);
   summaryLeftEl.className = "home-figure";
 
   if (!hasBudget) {
     summaryLeftEl.textContent = "Set your budget to see what is left";
     summaryLeftEl.classList.add("is-prompt");
   } else if (left < 0) {
-    summaryLeftEl.textContent = `Over budget by ${currency.format(Math.abs(left))}`;
+    summaryLeftEl.textContent = `Over budget by ${formatMoney(Math.abs(left))}`;
     summaryLeftEl.classList.add("is-over");
   } else {
-    summaryLeftEl.textContent = currency.format(left);
+    summaryLeftEl.textContent = formatMoney(left);
   }
 
   summaryMessageEl.className = "summary-message";
@@ -934,16 +987,16 @@ function renderHomeSummary() {
     summaryMessageEl.textContent =
       "Set a budget for this month, then I will show how you are doing.";
   } else if (left < 0) {
-    summaryMessageEl.textContent = `Careful, you are over budget by ${currency.format(Math.abs(left))}.`;
+    summaryMessageEl.textContent = `Careful, you are over budget by ${formatMoney(Math.abs(left))}.`;
     summaryMessageEl.classList.add("is-over");
   } else if (left === 0) {
     summaryMessageEl.textContent = "You have used your whole budget for this month.";
     summaryMessageEl.classList.add("is-over");
   } else if (percent >= 70) {
-    summaryMessageEl.textContent = `Careful, only ${currency.format(left)} left for the rest of the month.`;
+    summaryMessageEl.textContent = `Careful, only ${formatMoney(left)} left for the rest of the month.`;
     summaryMessageEl.classList.add("is-careful");
   } else {
-    summaryMessageEl.textContent = `You are doing great, you still have ${currency.format(left)} left.`;
+    summaryMessageEl.textContent = `You are doing great, you still have ${formatMoney(left)} left.`;
   }
 
   const shownPercent = Math.round(percent);
@@ -969,9 +1022,9 @@ function renderHomeSummary() {
     dailyLimitEl.textContent = "This month is already over.";
   } else if (left <= 0) {
     dailyLimitEl.textContent =
-      "Daily limit: you can spend $0.00 per day for the remaining days of this month.";
+      `Daily limit: you can spend ${formatMoney(0)} per day for the remaining days of this month.`;
   } else {
-    dailyLimitEl.textContent = `Daily limit: you can spend ${currency.format(roundMoney(left / days))} per day for the remaining days of this month.`;
+    dailyLimitEl.textContent = `Daily limit: you can spend ${formatMoney(roundMoney(left / days))} per day for the remaining days of this month.`;
   }
 
   const totals = new Map();
@@ -996,7 +1049,7 @@ function renderHomeSummary() {
       name.textContent = row.name;
 
       const amount = document.createElement("span");
-      amount.textContent = currency.format(row.amount);
+      amount.textContent = formatMoney(row.amount);
 
       const track = document.createElement("div");
       track.className = "mini-track";
@@ -1038,9 +1091,9 @@ function renderProfit() {
   );
   const profit = roundMoney(income - expenseTotal);
 
-  profitIncomeEl.textContent = currency.format(income);
-  profitExpensesEl.textContent = currency.format(expenseTotal);
-  profitAmountEl.textContent = currency.format(profit);
+  profitIncomeEl.textContent = formatMoney(income);
+  profitExpensesEl.textContent = formatMoney(expenseTotal);
+  profitAmountEl.textContent = formatMoney(profit);
   profitAmountEl.classList.toggle("profit-positive", profit > 0);
   profitAmountEl.classList.toggle("profit-negative", profit < 0);
 }
@@ -1124,15 +1177,15 @@ function renderSavingsGoal() {
       : 0;
   const goalLabel = savingsGoal.name || "your goal";
 
-  savingsSavedEl.textContent = currency.format(savingsGoal.saved);
-  savingsLeftEl.textContent = `Money left this month: ${currency.format(left)}`;
+  savingsSavedEl.textContent = formatMoney(savingsGoal.saved);
+  savingsLeftEl.textContent = `Money left this month: ${formatMoney(left)}`;
   addToSavingsButton.disabled = available <= 0;
   savingsFill.style.width = `${percent}%`;
   savingsTrack.setAttribute("aria-valuenow", String(percent));
   savingsTrack.setAttribute(
     "aria-valuetext",
-    `${currency.format(savingsGoal.saved)} of ${
-      savingsGoal.target > 0 ? currency.format(savingsGoal.target) : "the target"
+    `${formatMoney(savingsGoal.saved)} of ${
+      savingsGoal.target > 0 ? formatMoney(savingsGoal.target) : "the target"
     }`
   );
   savingsProgressText.textContent =
@@ -1149,4 +1202,461 @@ function formatDate(value) {
     day: "numeric",
     year: "numeric",
   });
+}
+
+function renderDashboard() {
+  prepareChartDefaults();
+  const month = /^\d{4}-\d{2}$/.test(dashboardMonthInput.value)
+    ? dashboardMonthInput.value
+    : today().slice(0, 7);
+  const months = recentMonths(month, 6);
+  const homeSpent = totalFor(spaces.home, month);
+  const businessSpent = totalFor(spaces.business, month);
+  const income = totalFor(sales, month);
+  const spending = roundMoney(homeSpent + businessSpent);
+  const profit = roundMoney(income - businessSpent);
+  const budget = budgets[month];
+  const hasBudget = typeof budget === "number" && budget > 0;
+
+  dashIncomeEl.textContent = formatMoney(income);
+  dashSpendingEl.textContent = formatMoney(spending);
+  dashProfitEl.textContent = formatMoney(profit);
+  dashProfitEl.className =
+    "dash-figure" + (profit > 0 ? " is-positive" : profit < 0 ? " is-negative" : "");
+
+  if (!hasBudget) {
+    dashLeftEl.textContent = "Set a home budget";
+    dashLeftEl.className = "dash-figure is-prompt";
+  } else {
+    dashLeftEl.textContent = formatMoney(roundMoney(budget - homeSpent));
+    dashLeftEl.className = "dash-figure";
+  }
+
+  const incomeSeries = months.map((item) => totalFor(sales, item.key));
+  const businessSeries = months.map((item) => totalFor(spaces.business, item.key));
+  const homeSeries = months.map((item) => totalFor(spaces.home, item.key));
+  const labels = months.map((item) => item.label);
+
+  showChart(
+    "bars",
+    dashBarsCanvas,
+    dashBarsEmpty,
+    seriesHasMoney(incomeSeries, businessSeries, homeSeries),
+    "No income or expenses in the last 6 months.",
+    {
+      type: "bar",
+      data: {
+        labels,
+        datasets: [
+          barSet("Business Income", incomeSeries, "#8fbf78", "#5f9448"),
+          barSet("Business Expenses", businessSeries, "#f4b6c8", "#e9899f"),
+          barSet("Home Expenses", homeSeries, "#b7d3a0", "#7eae68"),
+        ],
+      },
+      options: chartOptions({ scales: { x: labelScale(), y: moneyScale() } }),
+    }
+  );
+
+  const splitTotal = spending;
+  showChart(
+    "split",
+    dashSplitCanvas,
+    dashSplitEmpty,
+    splitTotal > 0,
+    "No spending this month yet.",
+    {
+      type: "doughnut",
+      data: {
+        labels: ["Home", "Business"],
+        datasets: [
+          {
+            data: [homeSpent, businessSpent],
+            backgroundColor: ["#b7d3a0", "#f4b6c8"],
+            borderColor: ["#7eae68", "#e9899f"],
+            borderWidth: 2,
+          },
+        ],
+      },
+      options: chartOptions({ cutout: "58%" }),
+    }
+  );
+
+  const categories = topCategories(month);
+  const sliceColors = ["#b7d3a0", "#f4b6c8", "#8fbf78", "#f9d6e0", "#cfe3b8", "#e9899f"];
+  const sliceBorders = ["#7eae68", "#e9899f", "#6fa85a", "#e7a0b6", "#8fbf78", "#d67b93"];
+  showChart(
+    "categories",
+    dashCategoriesCanvas,
+    dashCategoriesEmpty,
+    categories.length > 0,
+    "No categories to show for this month.",
+    {
+      type: "doughnut",
+      data: {
+        labels: categories.map((row) => row.label),
+        datasets: [
+          {
+            data: categories.map((row) => row.amount),
+            backgroundColor: categories.map((_, index) => sliceColors[index % sliceColors.length]),
+            borderColor: categories.map((_, index) => sliceBorders[index % sliceBorders.length]),
+            borderWidth: 2,
+          },
+        ],
+      },
+      options: chartOptions({ cutout: "58%" }),
+    }
+  );
+
+  showChart(
+    "trend",
+    dashTrendCanvas,
+    dashTrendEmpty,
+    incomeSeries.some((value) => value > 0),
+    "No business income in the last 6 months.",
+    {
+      type: "line",
+      data: {
+        labels,
+        datasets: [
+          {
+            label: "Business Income",
+            data: incomeSeries,
+            borderColor: "#6fa85a",
+            backgroundColor: "#b7d3a0",
+            pointBackgroundColor: "#f4b6c8",
+            pointBorderColor: "#3b3b3b",
+            pointRadius: 5,
+            pointHoverRadius: 6,
+            borderWidth: 3,
+            tension: 0.35,
+            fill: false,
+          },
+        ],
+      },
+      options: chartOptions({ scales: { x: labelScale(), y: moneyScale() } }),
+    }
+  );
+
+  const budgetPercent = renderDashBudget(hasBudget, budget, homeSpent);
+  renderDashAlerts(month, budgetPercent, profit);
+  renderDashActivity();
+}
+
+function renderDashBudget(hasBudget, budget, homeSpent) {
+  if (!hasBudget) {
+    dashBudgetBlock.hidden = true;
+    dashBudgetEmpty.hidden = false;
+    dashBudgetTrack.setAttribute("aria-valuenow", "0");
+    dashBudgetTrack.setAttribute("aria-valuetext", "No budget yet");
+    return null;
+  }
+
+  const percent = (homeSpent / budget) * 100;
+  const shown = Math.round(percent);
+  dashBudgetBlock.hidden = false;
+  dashBudgetEmpty.hidden = true;
+  dashBudgetFill.style.width = `${Math.min(Math.max(percent, 0), 100)}%`;
+  dashBudgetFill.className = "progress-fill";
+  if (percent > 90) dashBudgetFill.classList.add("is-high");
+  else if (percent >= 70) dashBudgetFill.classList.add("is-mid");
+  dashBudgetLabel.textContent = `${shown}% of budget used`;
+  dashBudgetTrack.setAttribute("aria-valuenow", String(Math.min(Math.max(shown, 0), 100)));
+  dashBudgetTrack.setAttribute("aria-valuetext", `${shown}% of budget used`);
+  return percent;
+}
+
+function renderDashAlerts(month, budgetPercent, profit) {
+  const alerts = [];
+  const overdue = overdueBillsFor(month);
+  if (overdue.length) {
+    const total = roundMoney(overdue.reduce((sum, bill) => sum + Number(bill.amount), 0));
+    const noun = overdue.length === 1 ? "overdue bill" : "overdue bills";
+    alerts.push(`${overdue.length} ${noun}, ${formatMoney(total)} still to pay.`);
+  }
+  if (budgetPercent != null && budgetPercent > 80) {
+    alerts.push("Home spending is above 80% of the budget.");
+  }
+  if (profit < 0) alerts.push("Business is at a loss this month.");
+
+  dashAlertsEl.replaceChildren();
+  if (!alerts.length) {
+    const ok = document.createElement("p");
+    ok.className = "alerts-ok";
+    ok.textContent = "All good this month";
+    dashAlertsEl.append(ok);
+    return;
+  }
+
+  const list = document.createElement("ul");
+  list.className = "alerts-list";
+  alerts.forEach((text) => {
+    const item = document.createElement("li");
+    item.textContent = text;
+    list.append(item);
+  });
+  dashAlertsEl.append(list);
+}
+
+function renderDashActivity() {
+  const rows = recentEntries().slice(0, 5);
+  dashActivityEl.replaceChildren(
+    ...rows.map((row) => {
+      const item = document.createElement("li");
+      item.className = row.space === "business" ? "expense is-business" : "expense";
+
+      const main = document.createElement("div");
+      main.className = "expense-main";
+
+      const top = document.createElement("div");
+      top.className = "expense-top";
+
+      const title = document.createElement("span");
+      title.className = "category";
+
+      const tag = document.createElement("span");
+      tag.className = `space-tag space-tag-${row.space}`;
+      tag.textContent = row.space === "home" ? "Home" : "Business";
+
+      const name = document.createElement("span");
+      name.textContent = row.title;
+
+      const amount = document.createElement("span");
+      amount.className = "amount";
+      amount.textContent = formatMoney(row.amount);
+
+      const meta = document.createElement("p");
+      meta.className = "meta";
+      meta.textContent =
+        row.kind === "sale"
+          ? `${formatDate(row.date)} · Income · ${row.note}`
+          : `${formatDate(row.date)} · ${row.note}`;
+
+      title.append(tag, name);
+      top.append(title, amount);
+      main.append(top, meta);
+      item.append(main);
+      return item;
+    })
+  );
+  dashActivityEmpty.hidden = rows.length > 0;
+}
+
+function overdueBillsFor(month) {
+  const todayValue = today();
+  let stored = [];
+  try {
+    const parsed = JSON.parse(localStorage.getItem(BILLS_KEY));
+    if (Array.isArray(parsed)) stored = parsed;
+  } catch {
+    stored = [];
+  }
+
+  return stored.filter((bill) => {
+    if (!bill || bill.paid === true) return false;
+    const due = typeof bill.dueDate === "string" ? bill.dueDate : "";
+    const amount = Number(bill.amount);
+    return (
+      /^\d{4}-\d{2}-\d{2}$/.test(due) &&
+      Number.isFinite(amount) &&
+      amount > 0 &&
+      due.slice(0, 7) === month &&
+      due < todayValue
+    );
+  });
+}
+
+function recentEntries() {
+  const rows = [];
+  spaces.home.forEach((expense, index) => {
+    rows.push({
+      space: "home",
+      kind: "expense",
+      date: expense.date,
+      title: expense.category,
+      note: expense.note,
+      amount: expense.amount,
+      index,
+    });
+  });
+  spaces.business.forEach((expense, index) => {
+    rows.push({
+      space: "business",
+      kind: "expense",
+      date: expense.date,
+      title: expense.category,
+      note: expense.note,
+      amount: expense.amount,
+      index,
+    });
+  });
+  sales.forEach((sale, index) => {
+    rows.push({
+      space: "business",
+      kind: "sale",
+      date: sale.date,
+      title: sale.customer || "Sale",
+      note: sale.note,
+      amount: sale.amount,
+      index,
+    });
+  });
+  rows.sort((a, b) => b.date.localeCompare(a.date) || a.index - b.index);
+  return rows;
+}
+
+function recentMonths(endMonth, count) {
+  const match = /^(\d{4})-(\d{2})$/.exec(endMonth);
+  const end = match ? new Date(Number(match[1]), Number(match[2]) - 1, 1) : new Date();
+  const months = [];
+  for (let i = count - 1; i >= 0; i -= 1) {
+    const date = new Date(end.getFullYear(), end.getMonth() - i, 1);
+    months.push({
+      key: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`,
+      label: date.toLocaleDateString("en-US", { month: "short", year: "2-digit" }),
+    });
+  }
+  return months;
+}
+
+function totalFor(items, month) {
+  if (!month) return 0;
+  return roundMoney(
+    items.reduce((sum, item) => {
+      return item.date && item.date.slice(0, 7) === month ? sum + item.amount : sum;
+    }, 0)
+  );
+}
+
+function topCategories(month) {
+  const totals = new Map();
+  const add = (space, expense) => {
+    if (!expense.date || expense.date.slice(0, 7) !== month) return;
+    const label = `${space === "home" ? "Home" : "Business"} · ${expense.category}`;
+    totals.set(label, (totals.get(label) || 0) + expense.amount);
+  };
+  spaces.home.forEach((expense) => add("home", expense));
+  spaces.business.forEach((expense) => add("business", expense));
+
+  const rows = [...totals.entries()]
+    .map(([label, amount]) => ({ label, amount: roundMoney(amount) }))
+    .sort((a, b) => b.amount - a.amount || a.label.localeCompare(b.label));
+  const top = rows.slice(0, 5);
+  const rest = roundMoney(rows.slice(5).reduce((sum, row) => sum + row.amount, 0));
+  if (rest > 0) top.push({ label: "Other", amount: rest });
+  return top;
+}
+
+function seriesHasMoney(...series) {
+  return series.some((values) => values.some((value) => value > 0));
+}
+
+function barSet(label, data, backgroundColor, borderColor) {
+  return {
+    label,
+    data,
+    backgroundColor,
+    borderColor,
+    borderWidth: 2,
+    borderRadius: 8,
+    maxBarThickness: 26,
+  };
+}
+
+function prepareChartDefaults() {
+  if (chartDefaultsReady || typeof Chart === "undefined") return;
+  Chart.defaults.font.family = '"Nunito", "Avenir Next", "Trebuchet MS", "Segoe UI", sans-serif';
+  Chart.defaults.color = "#3b3b3b";
+  chartDefaultsReady = true;
+}
+
+function chartPlugins() {
+  return {
+    legend: {
+      position: "bottom",
+      labels: {
+        color: "#3b3b3b",
+        boxWidth: 14,
+        padding: 12,
+        font: { size: 13, weight: "700" },
+      },
+    },
+    tooltip: {
+      backgroundColor: "#3b3b3b",
+      titleColor: "#fffbf5",
+      bodyColor: "#fffbf5",
+      padding: 10,
+      cornerRadius: 12,
+      callbacks: { label: chartMoneyLabel },
+    },
+  };
+}
+
+function chartOptions(extra) {
+  return {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: chartPlugins(),
+    ...extra,
+  };
+}
+
+function labelScale() {
+  return {
+    ticks: {
+      color: "#3b3b3b",
+      maxRotation: 0,
+      autoSkip: true,
+      font: { size: 12, weight: "700" },
+    },
+    grid: { display: false },
+  };
+}
+
+function moneyScale() {
+  return {
+    beginAtZero: true,
+    ticks: {
+      color: "#3b3b3b",
+      maxTicksLimit: 5,
+      font: { size: 12, weight: "700" },
+      callback: (value) => formatMoney(value),
+    },
+    grid: { color: "rgba(59, 59, 59, 0.08)" },
+  };
+}
+
+function chartMoneyLabel(context) {
+  const raw = context.parsed;
+  const value = raw && typeof raw === "object" ? raw.y : raw;
+  const name = context.dataset.label || context.label || "";
+  return `${name}: ${formatMoney(value)}`;
+}
+
+function showChart(name, canvas, emptyEl, hasData, emptyText, config) {
+  if (dashCharts[name]) {
+    dashCharts[name].destroy();
+    dashCharts[name] = null;
+  }
+  const box = canvas.parentElement;
+  if (!hasData) {
+    box.hidden = true;
+    emptyEl.hidden = false;
+    emptyEl.textContent = emptyText;
+    return;
+  }
+  if (typeof Chart === "undefined") {
+    box.hidden = true;
+    emptyEl.hidden = false;
+    emptyEl.textContent = "The chart could not load. Check your connection, then refresh the page.";
+    return;
+  }
+  box.hidden = false;
+  emptyEl.hidden = true;
+  try {
+    dashCharts[name] = new Chart(canvas, config);
+  } catch {
+    box.hidden = true;
+    emptyEl.hidden = false;
+    emptyEl.textContent = "This chart could not be drawn.";
+  }
 }
