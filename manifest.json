@@ -1,0 +1,13 @@
+{
+  "name": "My Expense Tracker",
+  "short_name": "My Expenses",
+  "icons": [
+    {
+      "src": "icon.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "background_color": "#FFFBF5",
+  "theme_color": "#DDEBC8"
+}
