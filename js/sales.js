@@ -4,6 +4,8 @@ import { session } from "./session.js";
 import { state, saveSales } from "./store.js";
 import { isDuplicateSale, saleStatus, monthBusiness, receivableOf } from "./calc.js";
 import { render } from "./render.js";
+import { attachReceipt, pinReceipt } from "./receipt-hook.js";
+import { clearStaged, viewReceiptButton } from "./receipt.js";
 
 const saleForm = document.getElementById("sale-form");
 const saleAmountInput = document.getElementById("sale-amount");
@@ -45,9 +47,18 @@ export function bindSales() {
       saleAmountInput.focus();
       return;
     }
-    state.sales.unshift({ id: crypto.randomUUID(), ...built.sale });
+    const sale = { id: crypto.randomUUID(), ...built.sale };
+    state.sales.unshift(sale);
+    pinReceipt("sale-form", sale.id);
+    try {
+      attachReceipt("payment", sale.id);
+    } catch {
+      saleErrorEl.textContent = "The payment was saved, but the photo could not be stored on this device.";
+      saleErrorEl.hidden = false;
+    }
     saveSales();
     render();
+    clearStaged(saleForm);
     saleForm.reset();
     saleDateInput.value = today();
     syncSaleKind();
@@ -114,6 +125,12 @@ export function renderSales() {
       const title = document.createElement("span");
       title.className = "category";
       title.textContent = sale.customer || (sale.kind === "advance" ? "Advance" : "Sale");
+      if (sale.verified === true) {
+        const badge = document.createElement("span");
+        badge.className = "verified-badge";
+        badge.textContent = "Verified";
+        title.append(document.createTextNode(" "), badge);
+      }
       const amount = document.createElement("span");
       amount.className = "amount";
       amount.textContent = formatMoney(sale.amount);
@@ -134,6 +151,8 @@ export function renderSales() {
       editButton.setAttribute("aria-label", `Edit ${title.textContent} of ${formatMoney(sale.amount)}`);
       const actions = document.createElement("div");
       actions.className = "expense-actions";
+      const view = viewReceiptButton(sale, "paymentProofId");
+      if (view) actions.append(view);
       actions.append(editButton, button);
       top.append(title, amount);
       main.append(top, meta);

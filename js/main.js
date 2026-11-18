@@ -27,6 +27,7 @@ import { bindChecklist, prepareChecklist, renderChecklist, registerChecklistScre
 import { registerApprovals, syncAutoApprovals, updateApprovalsBadge } from "./approvals.js";
 import { registerBudgets } from "./budgets.js";
 import { registerAlerts, refreshAlerts } from "./alerts.js";
+import { bootLock } from "./lock.js";
 const app = document.querySelector(".app");
 const tabs = [...document.querySelectorAll(".tab")];
 const panel = document.getElementById("space-panel");
@@ -103,16 +104,24 @@ registerScreen("checklist", {
     render();
   },
 });
-registerPlaceholders();
-registerChecklistScreen();
-registerSpendScreens();
-registerOrders();
-registerWork();
-registerApprovals();
-registerLinkedScreens();
-registerBudgets();
-registerAlerts();
-initNav();
+try {
+  registerPlaceholders();
+  registerChecklistScreen();
+  registerSpendScreens();
+  registerOrders();
+  registerWork();
+  registerApprovals();
+  registerLinkedScreens();
+  registerBudgets();
+  registerAlerts();
+  initNav();
+} catch (error) {
+  window.__bootError = error && error.stack ? error.stack : String(error);
+  console.error(error);
+}
+
+app.hidden = true;
+app.inert = true;
 
 function registerLinkedScreens() {
   registerScreen("settings", {
@@ -136,20 +145,35 @@ function openHomePlace(spaceName, headingId) {
   if (heading) heading.scrollIntoView({ block: "start" });
 }
 
-initStorage();
-loadAll();
-if (applyMonthlyRepeats()) saveSpaces();
-applyMonthlyGroceryDraft();
-syncAutoApprovals();
-updateApprovalsBadge();
-prepareDashboard();
-prepareExpenseForm();
-prepareSalesForm();
-prepareHome();
-prepareBills();
-if (document.getElementById("checklist-panel")) prepareChecklist();
-render();
-startRouter();
+let prepared = false;
+
+bootLock({
+  onUnlock() {
+    app.hidden = false;
+    app.inert = false;
+    initStorage();
+    loadAll();
+    if (applyMonthlyRepeats()) saveSpaces();
+    applyMonthlyGroceryDraft();
+    syncAutoApprovals();
+    updateApprovalsBadge();
+    if (!prepared) {
+      prepareDashboard();
+      prepareExpenseForm();
+      prepareSalesForm();
+      prepareHome();
+      prepareBills();
+      if (document.getElementById("checklist-panel")) prepareChecklist();
+      prepared = true;
+    }
+    render();
+    startRouter();
+  },
+  onLock() {
+    app.hidden = true;
+    app.inert = true;
+  },
+});
 
 document.querySelector(".tabs").addEventListener("keydown", (event) => {
   const index = TAB_ORDER.indexOf(session.space);

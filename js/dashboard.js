@@ -14,6 +14,7 @@ import {
 } from "./calc.js";
 import { renderBills } from "./bills.js";
 import { buildReceiptThumb } from "./receipt-thumb.js";
+import { renderBriefing } from "./briefing.js";
 
 const dashboardMonthInput = document.getElementById("dashboard-month");
 const dashPersonalEl = document.getElementById("dash-personal-balance");
@@ -66,6 +67,7 @@ export function renderDashboard() {
   const month = /^\d{4}-\d{2}$/.test(dashboardMonthInput.value)
     ? dashboardMonthInput.value
     : today().slice(0, 7);
+  renderBriefing(month);
   const todayValue = today();
   const figures = monthBusiness(state.sales, state.spaces.business, month);
   const homeSpent = sumInMonth(state.spaces.home, month);

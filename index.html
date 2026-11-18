@@ -19,7 +19,7 @@
     />
     <link rel="stylesheet" href="style.css" />
   </head>
-  <body>
+  <body class="is-locked">
     <header class="topbar">
       <button
         type="button"
@@ -91,6 +91,23 @@
               <label for="dashboard-month">Month</label>
               <input id="dashboard-month" name="month" type="month" />
             </div>
+
+            <section class="briefing" id="home-briefing" aria-label="What happened">
+              <div class="news-columns">
+                <section aria-labelledby="good-news-heading">
+                  <h2 id="good-news-heading">Good news</h2>
+                  <div id="good-news"></div>
+                </section>
+                <section aria-labelledby="bad-news-heading">
+                  <h2 id="bad-news-heading">Bad news</h2>
+                  <div id="bad-news"></div>
+                </section>
+              </div>
+              <h2 id="quick-numbers-heading">Quick numbers</h2>
+              <div class="dash-cards" id="quick-numbers" aria-labelledby="quick-numbers-heading"></div>
+              <button type="button" class="primary" id="explain-month">Explain my month</button>
+              <p class="summary-message" id="month-summary" hidden></p>
+            </section>
 
             <div class="dash-cards">
               <article class="dash-card dash-card-left">

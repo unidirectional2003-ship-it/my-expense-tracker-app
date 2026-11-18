@@ -4,6 +4,7 @@ import { session } from "./session.js";
 import { state } from "./store.js";
 import { isDuplicateExpense } from "./calc.js";
 import { addExpense } from "./expenses.js";
+import { syncAutoApprovals, updateApprovalsBadge } from "./approvals.js";
 import { goTo, ensureScreen, registerScreen, currentScreen } from "./router.js";
 import {
   loadCatalog,
@@ -722,7 +723,10 @@ function saveGroceriesBought() {
     date,
     note: groceryNote(rows),
     lines: rows,
+    scanHost: "groceries",
   };
+  const shop = document.getElementById("grocery-shop");
+  if (shop && shop.value.trim()) expense.merchant = shop.value.trim();
   if (isDuplicateExpense(state.spaces.home, expense)) {
     error.hidden = false;
     error.textContent = "This matches an expense you already saved.";
@@ -759,6 +763,8 @@ function markMonthlyTemplate() {
   });
   saveCatalog(catalog);
   applyMonthlyGroceryDraft(today());
+  syncAutoApprovals();
+  updateApprovalsBadge();
   error.hidden = true;
   paintTemplateNote();
   paintDrafts();

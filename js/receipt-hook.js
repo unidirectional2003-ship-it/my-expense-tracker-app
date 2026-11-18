@@ -4,7 +4,7 @@
  * after the owner has checked the values and chosen to save.
  */
 import { deleteRecord, get, save } from "./storage.js";
-import { saveSales, saveSpaces, state } from "./store.js";
+import { saveBills, saveSales, saveSpaces, state } from "./store.js";
 import { parseMoney, sameMoney } from "./money.js";
 
 const arms = [];
@@ -27,11 +27,8 @@ export function pinReceipt(hostKey, entityId) {
   if (arm) arm.entityId = entityId;
 }
 
-function takeArm(entityType, entityId) {
-  const index = arms.findIndex((arm) => arm.entityId === entityId && arm.entityType === entityType);
-  if (index === -1) return null;
-  const [arm] = arms.splice(index, 1);
-  return arm;
+function findArm(entityType, entityId) {
+  return arms.findIndex((arm) => arm.entityId === entityId && arm.entityType === entityType);
 }
 
 function verdict(proofAmount, enteredRaw) {
@@ -43,8 +40,10 @@ function verdict(proofAmount, enteredRaw) {
 
 export function attachReceipt(entityType, entityId) {
   if (!entityType || !entityId) return null;
-  const arm = takeArm(entityType, entityId);
-  if (!arm || typeof arm.image !== "string" || !arm.image.startsWith("data:image/")) return null;
+  const index = findArm(entityType, entityId);
+  if (index === -1) return null;
+  const arm = arms[index];
+  if (typeof arm.image !== "string" || !arm.image.startsWith("data:image/")) return null;
 
   const receiptId = crypto.randomUUID();
   save("receipts", {
@@ -54,6 +53,7 @@ export function attachReceipt(entityType, entityId) {
     entityId,
     createdAt: new Date().toISOString(),
   });
+  arms.splice(index, 1);
 
   const entered = typeof arm.enteredNow === "function" ? arm.enteredNow() : "";
   const verified = entityType === "payment" ? verdict(arm.proofAmount, entered) : undefined;
@@ -74,7 +74,7 @@ function linkRecord(entityType, entityId, receiptId, arm, verified) {
     const bill = state.bills.find((item) => item.id === entityId);
     if (bill) {
       bill.receiptId = receiptId;
-      return;
+      saveBills();
     }
   }
 

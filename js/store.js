@@ -180,6 +180,10 @@ function normalizeSale(sale) {
   };
   if (typeof sale.orderId === "string" && sale.orderId) next.orderId = sale.orderId;
   if (typeof sale.paymentId === "string" && sale.paymentId) next.paymentId = sale.paymentId;
+  if (sale.verified === true || sale.verified === false) next.verified = sale.verified === true;
+  if (typeof sale.paymentProofId === "string" && sale.paymentProofId) next.paymentProofId = sale.paymentProofId;
+  if (typeof sale.proofAmount === "number" && Number.isFinite(sale.proofAmount)) next.proofAmount = roundMoney(sale.proofAmount);
+  if (typeof sale.proofDate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(sale.proofDate)) next.proofDate = sale.proofDate;
   const changed =
     sale.kind !== next.kind ||
     sale.amount !== next.amount ||
@@ -210,6 +214,7 @@ function normalizeBill(bill) {
     paid: bill.paid === true,
     space,
   };
+  if (typeof bill.receiptId === "string" && bill.receiptId) next.receiptId = bill.receiptId;
   const changed =
     bill.id !== next.id ||
     bill.name !== next.name ||

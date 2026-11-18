@@ -6,7 +6,7 @@ import { state, receiptPhotos, saveBills } from "./store.js";
 import { deleteRecord, get, save } from "./storage.js";
 import { parseReceipt } from "./receipt-parse.js";
 import { isReceiptImage } from "./receipt-thumb.js";
-import { armReceipt, attachReceipt, clearArm, removeReceipt } from "./receipt-hook.js";
+import { armReceipt, attachReceipt, clearArm, pinReceipt, removeReceipt } from "./receipt-hook.js";
 import { registerScreen } from "./router.js";
 
 const TESSERACT_URL = "https://cdn.jsdelivr.net/npm/tesseract.js@5";
@@ -43,7 +43,7 @@ const spaceInput = document.getElementById("receipt-space");
 const amountHint = document.getElementById("receipt-amount-hint");
 const formError = document.getElementById("receipt-form-error");
 const applyButton = receiptForm?.querySelector("[type=submit]");
-const laterButton = document.getElementById("receipt-later");
+let laterButton = document.getElementById("receipt-later");
 
 let request = null;
 let receiptImage = "";
@@ -64,6 +64,15 @@ export function bindReceipt() {
   if (!scanButton || !receiptModal || !receiptForm) return;
   scanButton.dataset.scan = scanButton.dataset.scan || "expense";
   scanButton.dataset.scanHost = scanButton.dataset.scanHost || "expense-form";
+  if (!laterButton && applyButton) {
+    laterButton = document.createElement("button");
+    laterButton.type = "button";
+    laterButton.id = "receipt-later";
+    laterButton.className = "edit-cancel";
+    laterButton.textContent = "Save for later";
+    laterButton.hidden = true;
+    applyButton.before(laterButton);
+  }
 
   document.addEventListener("click", onScanClick);
   cameraInput.addEventListener("change", (event) => onFileChange(event, true));
@@ -463,20 +472,24 @@ function useValues() {
   if (payment && proof.ok && !enteredRaw(request.host) && fields.amount) fields.amount.value = proof.value.toFixed(2);
   if (payment && date && fields.date && !fields.date.value) fields.date.value = date;
 
-  armReceipt(request.hostKey, payment ? "payment" : "expense", {
+  const host = request.host;
+  const hostKey = request.hostKey;
+  const proofAmount = proof.ok ? proof.value : null;
+  const entityType = payment ? "payment" : hostKey === "bill-form" ? "bill" : "expense";
+  armReceipt(hostKey, entityType, {
     image: receiptImage,
     merchant,
-    proofAmount: proof.ok ? proof.value : null,
+    proofAmount,
     proofDate: date,
     category: categoryInput.value || request.category || "Other",
     space: selectedSpace(),
     note: noteInput.value.trim(),
-    enteredNow: () => enteredRaw(request.host),
+    enteredNow: () => enteredRaw(host),
   });
   const message = payment
-    ? paymentMessage(proof.ok ? proof.value : null, enteredRaw(request.host))
+    ? paymentMessage(proofAmount, enteredRaw(host))
     : "Receipt photo attached. Check the fields, then save. Nothing is stored until you do.";
-  showStaged(request.host, receiptImage, message, payment);
+  showStaged(host, hostKey, receiptImage, message, proofAmount);
   closeReceiptModal();
 }
 
@@ -534,7 +547,7 @@ function saveForLater() {
   if (card && card.scrollIntoView) card.scrollIntoView({ behavior: "smooth", block: "center" });
 }
 
-function showStaged(host, image, message, payment) {
+function showStaged(host, hostKey, image, message, proofAmount) {
   if (!host) return;
   let note = host.querySelector(".scan-staged");
   if (!note) {
@@ -549,37 +562,33 @@ function showStaged(host, image, message, payment) {
   img.src = image;
   const copy = document.createElement("p");
   copy.className = "meta scan-result";
-  copy.textContent = message;
-  if (message === "Matches") copy.classList.add("is-match");
-  if (message.startsWith("Amount differs")) copy.classList.add("is-differ");
+  paintVerdict(copy, message);
   const remove = document.createElement("button");
   remove.type = "button";
   remove.className = "edit-cancel";
   remove.textContent = "Remove photo";
   remove.addEventListener("click", () => {
-    clearArm(request?.hostKey || host.dataset.scanHost || host.id);
+    clearArm(hostKey);
     note.remove();
   });
   note.append(img, copy, remove);
-  if (payment) {
+  if (host.dataset.paymentForm || host.id === "sale-form") {
+    const refresh = () => paintVerdict(copy, paymentMessage(proofAmount, enteredRaw(host)));
     const amount = named(host, "amount");
     const cash = named(host, "cash");
-    const refresh = () => {
-      const proof = parseMoney(amountInput.value);
-      const live = paymentMessage(proof.ok ? proof.value : peekProof(host), enteredRaw(host));
-      copy.textContent = live;
-      copy.classList.toggle("is-match", live === "Matches");
-      copy.classList.toggle("is-differ", live.startsWith("Amount differs"));
-    };
     if (amount) amount.addEventListener("input", refresh);
     if (cash) cash.addEventListener("input", refresh);
   }
 }
 
-function peekProof(host) {
-  const key = host?.dataset?.paymentForm || host?.dataset?.entryForm || host?.id;
-  return null;
-  void key;
+function paintVerdict(copy, message) {
+  copy.textContent = message;
+  copy.classList.toggle("is-match", message === "Matches");
+  copy.classList.toggle("is-differ", message.startsWith("Amount differs"));
+}
+
+export function clearStaged(host) {
+  host?.querySelector(".scan-staged")?.remove();
 }
 
 function resolveFields(host) {
@@ -854,16 +863,7 @@ function dismissItem(item) {
 }
 
 export function attachBillReceipt(bill) {
-  pinAndAttach("bill-form", "bill", bill.id);
+  pinReceipt("bill-form", bill.id);
+  attachReceipt("bill", bill.id);
   saveBills();
-}
-
-function pinAndAttach(hostKey, entityType, entityId) {
-  const { pinReceipt } = receiptHook();
-  pinReceipt(hostKey, entityId);
-  attachReceipt(entityType, entityId);
-}
-
-function receiptHook() {
-  return { pinReceipt: (hostKey, entityId) => import("./receipt-hook.js").then((mod) => mod.pinReceipt(hostKey, entityId)) };
 }

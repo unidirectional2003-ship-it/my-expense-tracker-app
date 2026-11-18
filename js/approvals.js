@@ -20,17 +20,26 @@ let syncing = false;
 let screenRoot = null;
 
 export function registerApprovals() {
+  mountApprovals();
+  queueMicrotask(mountApprovals);
+  globalThis.queuePendingApproval = queuePendingApproval;
+}
+
+function mountApprovals() {
   screenRoot = ensureScreen("approvals");
   screenRoot.replaceChildren(buildScreen());
   registerScreen("approvals", {
     show() {
       syncAutoApprovals();
       renderApprovals();
+      updateApprovalsBadge();
     },
   });
-  screenRoot.addEventListener("click", onClick);
-  screenRoot.addEventListener("submit", onSubmit);
-  globalThis.queuePendingApproval = queuePendingApproval;
+  if (screenRoot.dataset.bound !== "yes") {
+    screenRoot.dataset.bound = "yes";
+    screenRoot.addEventListener("click", onClick);
+    screenRoot.addEventListener("submit", onSubmit);
+  }
 }
 
 export function syncAutoApprovals(asOf = today()) {
@@ -39,6 +48,7 @@ export function syncAutoApprovals(asOf = today()) {
   try {
     const month = String(asOf).slice(0, 7);
     if (!/^\d{4}-\d{2}$/.test(month)) return;
+    labelReceiptSuggestions();
     liftDirectAutoSaves();
     if (groceryFlagOn()) applyMonthlyGroceryDraft(asOf);
     queueGroceryLists(month);
@@ -79,7 +89,37 @@ export function updateApprovalsBadge() {
 function waitingItems() {
   return get("pendingApprovals")
     .filter((item) => isWaiting(item))
-    .sort((a, b) => a.date.localeCompare(b.date) || a.title.localeCompare(b.title));
+    .map(present)
+    .sort((a, b) => String(a.date).localeCompare(String(b.date)) || a.title.localeCompare(b.title));
+}
+
+function present(item) {
+  const title = cleanText(item.title || item.note || item.merchant || item.category || "Suggested entry", 120);
+  const note = cleanText(item.note || title, 120);
+  const source = cleanText(item.source || (item.receiptId ? SOURCE_RECEIPT : "Auto"), 80);
+  return {
+    ...item,
+    title,
+    note,
+    source,
+    kind: item.kind === "income" ? "income" : "expense",
+    space: item.space === "business" ? "business" : "home",
+    amount: roundMoney(Number(item.amount)),
+    category: item.category || "Other",
+  };
+}
+
+function labelReceiptSuggestions() {
+  get("pendingApprovals").forEach((item) => {
+    if (!isWaiting(item) || item.source || item.sourceKey) return;
+    if (!item.receiptId && !item.merchant) return;
+    const month = String(item.date || "").slice(0, 7);
+    update("pendingApprovals", item.id, {
+      source: SOURCE_RECEIPT,
+      sourceKey: `receipt:${item.merchant || item.receiptId}:${month}:${item.amount}`,
+      title: item.note || item.merchant || "Receipt",
+    });
+  });
 }
 
 function isWaiting(item) {
@@ -345,7 +385,7 @@ function buildRow(item) {
   auto.className = "auto-label";
   auto.textContent = "Auto";
   const name = document.createElement("span");
-  name.textContent = item.title;
+  name.textContent = itemLabel(item);
   title.append(auto, name);
   const amount = document.createElement("span");
   amount.className = "amount";
@@ -354,7 +394,7 @@ function buildRow(item) {
   info.className = "meta";
   const kind = item.kind === "income" ? "Income" : "Expense";
   const where = item.space === "business" ? "Business" : "Home";
-  info.textContent = `${formatDate(item.date)} · ${where} ${kind.toLowerCase()} · ${item.source}`;
+  info.textContent = `${formatDate(item.date)} · ${where} ${kind.toLowerCase()} · ${itemSource(item)}`;
   top.append(title, amount);
   main.append(top, info);
 
@@ -367,6 +407,16 @@ function buildRow(item) {
   );
   row.append(main, actions);
   return row;
+}
+
+function itemLabel(item) {
+  return item.title || item.note || item.merchant || "Suggested entry";
+}
+
+function itemSource(item) {
+  if (item.source) return item.source;
+  if (item.receiptId) return SOURCE_RECEIPT;
+  return "Auto";
 }
 
 function actionButton(text, className, action, id, label) {

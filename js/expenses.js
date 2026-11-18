@@ -2,7 +2,10 @@ import { parseMoney, formatMoney } from "./money.js";
 import { today, formatDate, nextMonth, dateInMonth } from "./dates.js";
 import { SPACES } from "./spaces.js";
 import { session } from "./session.js";
-import { state, saveSpaces, deleteReceipt, receiptPhotos } from "./store.js";
+import { state, saveSpaces, receiptPhotos } from "./store.js";
+import { deleteRecord } from "./storage.js";
+import { attachReceipt, pinReceipt } from "./receipt-hook.js";
+import { clearStaged, viewReceiptButton } from "./receipt.js";
 import { isDuplicateExpense } from "./calc.js";
 import { render } from "./render.js";
 import { buildReceiptThumb } from "./receipt-thumb.js";
@@ -70,7 +73,9 @@ export function bindExpenses() {
       expense.seriesId = expense.id;
       expense.lastAppliedMonth = date.slice(0, 7);
     }
+    expense.scanHost = "expense-form";
     addExpense(session.space, expense);
+    clearStaged(form);
     form.reset();
     dateInput.value = today();
     fillCategories();
@@ -97,7 +102,13 @@ export function bindExpenses() {
     if (!button || !SPACES[session.space]) return;
     if (session.editingId === button.dataset.id) session.editingId = null;
     const removed = state.spaces[session.space].find((expense) => expense.id === button.dataset.id);
-    if (removed) deleteReceipt(removed.receiptId);
+    if (removed?.receiptId) {
+      try {
+        deleteRecord("receipts", removed.receiptId);
+      } catch {
+        // The expense is already removed. A leftover photo stays only if storage is full.
+      }
+    }
     state.spaces[session.space] = state.spaces[session.space].filter(
       (expense) => expense.id !== button.dataset.id
     );
@@ -114,10 +125,20 @@ export function bindExpenses() {
 }
 
 export function addExpense(spaceName, expense) {
+  if (!state.spaces[spaceName]) return false;
+  const hostKey = expense.scanHost;
+  delete expense.scanHost;
   state.spaces[spaceName].unshift(expense);
+  if (hostKey) pinReceipt(hostKey, expense.id);
+  try {
+    attachReceipt("expense", expense.id);
+  } catch {
+    // The expense stays saved when the photo itself cannot be stored.
+  }
   if (expense.repeatsMonthly) applyMonthlyRepeats();
   saveSpaces();
   render();
+  return true;
 }
 
 export function prepareExpenseForm() {
@@ -221,6 +242,8 @@ export function renderExpenses() {
         "aria-label",
         `Delete ${expense.category} expense of ${formatMoney(expense.amount)}`
       );
+      const view = viewReceiptButton(expense);
+      if (view) actions.append(view);
       actions.append(editButton, button);
       const photo =
         (expense.receiptId && photos[expense.receiptId]) ||
