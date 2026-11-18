@@ -156,12 +156,12 @@ export function presentBillScan({ parsed, image, failedLoad, confidence, request
           },
           today().slice(0, 7)
         );
-        finish(template.id, values, image, error, close);
+        finish(template.id, values, image, error, close, request);
       };
-      askSkip.onclick = () => finish("", values, image, error, close);
+      askSkip.onclick = () => finish("", values, image, error, close, request);
       return;
     }
-    finish(target, values, image, error, close);
+    finish(target, values, image, error, close, request);
   };
 
   later.addEventListener("click", () => saveForApproval(readValues(form), image, error, close));

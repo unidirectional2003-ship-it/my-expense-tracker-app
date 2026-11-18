@@ -64,6 +64,11 @@ export function bindBills() {
       const bill = state.bills.find((item) => item.id === paidButton.dataset.billPaid);
       if (!bill) return;
       bill.paid = !bill.paid;
+      if (bill.paid && bill.receiptId) {
+        import("./bill-book.js")
+          .then((book) => book.markBillScanPaidByReceipt(bill.receiptId))
+          .catch(() => {});
+      }
       saveBills();
       render();
       return;

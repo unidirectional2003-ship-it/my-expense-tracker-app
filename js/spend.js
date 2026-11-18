@@ -1104,7 +1104,7 @@ function saveReceipt(forApproval) {
   const lines = chosen.map((row) => {
     let itemId = row.itemId;
     if (!itemId) {
-      itemId = createCatalogItem(catalog, row.typedName, row.groupId, row.price.value);
+      itemId = createCatalogItem(catalog, row.typedName, row.groupId, forApproval ? 0 : row.price.value);
       row.itemId = itemId;
     } else if (row.groupId) {
       catalog.items = catalog.items.map((item) => (item.id === itemId ? { ...item, groupId: row.groupId } : item));
@@ -1122,15 +1122,26 @@ function saveReceipt(forApproval) {
       suggestedId: row.suggestedId,
     };
   });
+  const amount = roundMoney(lines.reduce((sum, line) => sum + line.lineTotal, 0));
+  const note = groceryNote(lines);
+  const cleanLines = lines.map(({ itemId, name, qty, price, lineTotal }) => ({ itemId, name, qty, price, lineTotal }));
+  const expenseId = crypto.randomUUID();
+  if (!forApproval && isDuplicateExpense(state.spaces.home, { amount, category: "Groceries", date, note })) {
+    showReceiptError(error, "This matches an expense you already saved.");
+    return;
+  }
   chosen.forEach((row) => {
     if (!row.itemId || row.itemId === row.suggestedId) return;
     if (!aliasKey(row.ocrName)) return;
     const [alias] = learnAlias([], row.ocrName, row.itemId);
     if (alias) save("receiptAliases", alias);
   });
-  const amount = roundMoney(lines.reduce((sum, line) => sum + line.lineTotal, 0));
-  const note = groceryNote(lines);
-  const expenseId = crypto.randomUUID();
+  if (!forApproval) {
+    lines.forEach((line) => {
+      catalog = rememberPrice(catalog, line.itemId, line.price);
+    });
+  }
+  saveCatalog(catalog);
   const receiptId = storeReceiptPhoto(receiptPhoto, expenseId);
   if (forApproval) {
     const queued = queuePendingApproval({
@@ -1147,7 +1158,7 @@ function saveReceipt(forApproval) {
       month: date.slice(0, 7),
       merchant: shop,
       receiptId,
-      lines,
+      lines: cleanLines,
     });
     if (!queued) {
       showReceiptError(error, "This receipt is already waiting for approval.");
@@ -1164,10 +1175,6 @@ function saveReceipt(forApproval) {
     updateApprovalsBadge();
     return;
   }
-  lines.forEach((line) => {
-    catalog = rememberPrice(catalog, line.itemId, line.price);
-  });
-  saveCatalog(catalog);
   const expense = {
     id: expenseId,
     amount,
@@ -1175,14 +1182,10 @@ function saveReceipt(forApproval) {
     subcategory: "Grocery list",
     date,
     note,
-    lines: lines.map(({ itemId, name, qty, price, lineTotal }) => ({ itemId, name, qty, price, lineTotal })),
+    lines: cleanLines,
     merchant: shop,
     receiptId,
   };
-  if (isDuplicateExpense(state.spaces.home, expense)) {
-    showReceiptError(error, "This matches an expense you already saved.");
-    return;
-  }
   addExpense("home", expense);
   tickBought(lines);
   error.hidden = true;

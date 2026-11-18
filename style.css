@@ -2102,3 +2102,29 @@ body.settings-open {
   color: #3d6b32;
   font-weight: 800;
 }
+
+.grocery-review {
+  margin: 12px 0 18px;
+}
+
+.grocery-review table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.grocery-review th,
+.grocery-review td {
+  text-align: left;
+  padding: 6px 4px;
+  vertical-align: middle;
+}
+
+.grocery-review input,
+.grocery-review select {
+  width: 100%;
+  max-width: 11rem;
+}
+
+.grocery-unsure {
+  box-shadow: inset 4px 0 0 var(--pink-deep);
+}

@@ -6,6 +6,8 @@ import { state, saveChecklist, saveSpaces } from "./store.js";
 import { render } from "./render.js";
 import { registerScreen } from "./router.js";
 import { openSpend } from "./spend.js";
+import { noteChecklistPaid, receiptForTemplate } from "./bill-scan.js";
+import { markTemplateBillUnpaid } from "./bill-book.js";
 import {
   ensureMonth,
   ensureMonthsThrough,
@@ -48,6 +50,7 @@ const payCancel = document.getElementById("checklist-pay-cancel");
 
 let editingTemplateId = null;
 let pendingPayId = null;
+let pendingSurcharge = null;
 
 export function getOverdueChecklistItems(todayValue = today()) {
   const month = todayValue.slice(0, 7);
@@ -291,6 +294,7 @@ function renderList() {
   manageForm.hidden = !current;
   emptyEl.hidden = rows.length > 0;
   payForm.hidden = !pendingPayId;
+  renderSurcharge();
 
   const pending = rows.find((row) => row.id === pendingPayId);
   if (pending) {
@@ -343,8 +347,34 @@ function buildRow(item, month, current, index, total) {
   main.append(checkLabel, open);
 
   row.append(main);
+  row.append(buildScanBill(item, month));
   if (current) row.append(buildRowActions(item, index, total));
   return row;
+}
+
+function buildScanBill(item, month) {
+  const actions = document.createElement("div");
+  actions.className = "expense-actions checklist-actions";
+  const scan = document.createElement("button");
+  scan.type = "button";
+  scan.className = "primary scan-receipt";
+  scan.dataset.scan = "bill";
+  scan.dataset.scanHost = `checklist-${item.templateId}`;
+  scan.dataset.checklistTemplate = item.templateId;
+  scan.dataset.checklistMonth = month;
+  scan.textContent = "Scan Bill";
+  actions.append(scan);
+  const receiptId = receiptForTemplate(item.templateId);
+  if (receiptId) {
+    const view = document.createElement("button");
+    view.type = "button";
+    view.className = "edit";
+    view.dataset.viewReceipt = item.id;
+    view.dataset.receipt = receiptId;
+    view.textContent = "View bill";
+    actions.append(view);
+  }
+  return actions;
 }
 
 function buildRowActions(item, index, total) {
@@ -636,6 +666,8 @@ function commitPayment(item, amount) {
   pendingPayId = null;
   saveSpaces();
   saveChecklist();
+  const late = noteChecklistPaid(item.templateId, now);
+  pendingSurcharge = late && late.surcharge > 0 ? { ...late, templateId: item.templateId } : null;
   render();
 }
 
@@ -647,6 +679,8 @@ function undoPayment(item) {
     saveSpaces();
   }
   pendingPayId = null;
+  markTemplateBillUnpaid(item.templateId);
+  if (pendingSurcharge && pendingSurcharge.templateId === item.templateId) pendingSurcharge = null;
   saveChecklist();
   render();
 }

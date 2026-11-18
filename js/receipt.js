@@ -5,6 +5,8 @@ import { session } from "./session.js";
 import { state, receiptPhotos, saveBills } from "./store.js";
 import { deleteRecord, get, save } from "./storage.js";
 import { parseGroceryReceipt, parseReceipt } from "./receipt-parse.js";
+import { parseBill } from "./bill-parse.js";
+import { hideBillScan, presentBillScan } from "./bill-scan.js";
 import { isReceiptImage } from "./receipt-thumb.js";
 import { armReceipt, attachReceipt, clearArm, pinReceipt, removeReceipt } from "./receipt-hook.js";
 import { registerScreen } from "./router.js";
@@ -106,6 +108,8 @@ export function bindReceipt() {
     openReceiptViewer(src);
   });
 
+  const expenseCategory = document.getElementById("category");
+  if (expenseCategory) expenseCategory.addEventListener("change", syncBillScanOnExpense);
   mountScanButtons(document);
   const observer = new MutationObserver(() => mountScanButtons(document));
   observer.observe(document.body, { childList: true, subtree: true });
@@ -120,6 +124,7 @@ export function onGroceryScan(handler) {
 function scanMode(button) {
   if (button.dataset.scan === "payment") return "payment";
   if (button.dataset.scan === "grocery") return "grocery";
+  if (button.dataset.scan === "bill") return "bill";
   return "expense";
 }
 
@@ -133,6 +138,8 @@ function onScanClick(event) {
     host,
     hostKey: button.dataset.scanHost || host?.dataset.paymentForm || host?.dataset.entryForm || host?.id || "expense",
     category: button.dataset.scanCategory || "",
+    checklistTemplateId: button.dataset.checklistTemplate || "",
+    checklistMonth: button.dataset.checklistMonth || "",
     button,
   });
 }
@@ -144,12 +151,20 @@ function openScanner(options) {
   receiptModal.hidden = false;
   document.body.classList.add("receipt-open");
   const payment = options.mode === "payment";
-  receiptTitle.textContent =
-    options.mode === "grocery" ? "Scan grocery receipt" : payment ? "Scan payment proof" : "Scan receipt";
+  const bill = options.mode === "bill";
+  receiptTitle.textContent = bill
+    ? "Scan bill"
+    : options.mode === "grocery"
+      ? "Scan grocery receipt"
+      : payment
+        ? "Scan payment proof"
+        : "Scan receipt";
   if (chooseCopy) {
-    chooseCopy.textContent = payment
-      ? "Take a photo of an Easypaisa, JazzCash, or bank receipt, or choose one from your gallery."
-      : "Take a photo of a paper receipt, or choose one from your gallery.";
+    chooseCopy.textContent = bill
+      ? "Take a photo, choose one from your gallery, or use a screenshot from a bill app."
+      : payment
+        ? "Take a photo of an Easypaisa, JazzCash, or bank receipt, or choose one from your gallery."
+        : "Take a photo of a paper receipt, or choose one from your gallery.";
   }
   showStep("choose");
   receiptDialog.focus();
@@ -355,6 +370,11 @@ async function scanReceiptImage() {
       deliverGroceryScan(parseGroceryReceipt(text, confidence, lines), confidence, false);
       return;
     }
+    if (request && request.mode === "bill") {
+      showBillConfirm(parseBill(text), confidence, false);
+      return;
+    }
+    hideBillScan();
     showConfirm(parseReceipt(text), confidence, false);
   } catch (error) {
     if (token !== scanToken) return;
@@ -363,6 +383,11 @@ async function scanReceiptImage() {
       deliverGroceryScan(parseGroceryReceipt(""), 0, true);
       return;
     }
+    if (request && request.mode === "bill") {
+      showBillConfirm(parseBill(""), 0, true);
+      return;
+    }
+    hideBillScan();
     showConfirm(parseReceipt(""), 0, failedLoad);
   } finally {
     if (token === scanToken) scanBusy = false;
@@ -407,7 +432,23 @@ function updateScanProgress(message) {
   progressEl.textContent = `Scanning... ${percent}%`;
 }
 
+function showBillConfirm(parsed, confidence, failedLoad) {
+  presentBillScan({
+    parsed,
+    image: receiptImage,
+    failedLoad,
+    confidence,
+    request,
+    showStep,
+    setTitle(title) {
+      receiptTitle.textContent = title;
+    },
+    close: closeReceiptModal,
+  });
+}
+
 function showConfirm(parsed, confidence, failedLoad) {
+  hideBillScan();
   const payment = request && request.mode === "payment";
   unsure = failedLoad || !parsed.amount || (typeof confidence === "number" && confidence < 45);
   amountInput.value = parsed.amount ? parsed.amount.toFixed(2) : "";
@@ -698,10 +739,11 @@ export function mountScanButtons(root) {
     if (form.id === "receipt-form" || form.classList.contains("edit-form")) return;
     if (form.id === "expense-form") ensureButton(form, "expense", "expense-form", "");
     if (form.id === "sale-form") ensureButton(form, "payment", "sale-form", "");
-    if (form.id === "bill-form") ensureButton(form, "expense", "bill-form", "Bills");
+    if (form.id === "bill-form") ensureButton(form, "bill", "bill-form", "Bills");
     if (form.dataset.entryForm) {
       const kind = form.dataset.entryForm;
-      ensureButton(form, "expense", kind, CATEGORY_FOR_KIND[kind] || "");
+      const mode = kind === "bills" ? "bill" : "expense";
+      ensureButton(form, mode, kind, CATEGORY_FOR_KIND[kind] || "");
     }
     if (form.dataset.paymentForm) ensureButton(form, "payment", form.dataset.paymentForm, "");
   });

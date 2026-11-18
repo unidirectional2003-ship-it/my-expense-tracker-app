@@ -380,6 +380,12 @@ function buildScreen() {
   approveAll.id = "approve-all";
   approveAll.hidden = true;
   approveAll.textContent = "Approve all";
+  const scanBill = document.createElement("button");
+  scanBill.type = "button";
+  scanBill.className = "primary scan-receipt";
+  scanBill.dataset.scan = "bill";
+  scanBill.dataset.scanHost = "approvals";
+  scanBill.textContent = "Scan Bill";
   const error = document.createElement("p");
   error.className = "form-error";
   error.id = "approvals-error";
@@ -392,7 +398,7 @@ function buildScreen() {
   empty.className = "empty";
   empty.id = "approvals-empty";
   empty.textContent = "Nothing is waiting for approval.";
-  sheet.append(title, meta, approveAll, error, list, empty);
+  sheet.append(title, meta, scanBill, approveAll, error, list, empty);
   wrap.append(intro, sheet);
   return wrap;
 }

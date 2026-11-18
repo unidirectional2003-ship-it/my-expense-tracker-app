@@ -32,6 +32,7 @@ const DATA_KEYS = [
   "tracker-db",
   "tracker-db-previous",
   "tracker-db-unreadable",
+  "bill-scans",
 ];
 
 let unlocked = false;

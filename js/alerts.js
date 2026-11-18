@@ -5,7 +5,9 @@ import { goTo, currentScreen, ensureScreen, registerScreen } from "./router.js";
 import { budgetSnapshot } from "./budgets.js";
 import { getOverdueChecklistItems } from "./checklist.js";
 import { balanceOf } from "./order-book.js";
+import { listUdhaar, remainingOf } from "./udhaar-book.js";
 import { refreshBadges } from "./nav.js";
+import { billAlertPlans, loadBillBook } from "./bill-book.js";
 import { reconcileProblems } from "./accounts.js";
 
 let openList;
@@ -141,6 +143,10 @@ export function syncAlerts(todayValue = today()) {
   });
   existing.forEach((row) => {
     if (seen.has(row.id) || row.status === "resolved") return;
+    if (String(row.id).startsWith("bill-scan:")) {
+      save("alerts", { ...row, status: "resolved", resolvedAt: todayValue });
+      return;
+    }
     deleteRecord("alerts", row.id);
   });
 }
