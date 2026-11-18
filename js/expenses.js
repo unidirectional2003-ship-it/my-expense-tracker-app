@@ -9,6 +9,7 @@ import { clearStaged, viewReceiptButton } from "./receipt.js";
 import { isDuplicateExpense } from "./calc.js";
 import { render } from "./render.js";
 import { buildReceiptThumb } from "./receipt-thumb.js";
+import { accountField } from "./accounts.js";
 
 const form = document.getElementById("expense-form");
 const amountInput = document.getElementById("amount");
@@ -62,6 +63,8 @@ export function bindExpenses() {
       date,
       note,
     };
+    const accountId = document.getElementById("expense-account")?.value || "";
+    if (accountId) expense.accountId = accountId;
     if (isDuplicateExpense(state.spaces[session.space], expense)) {
       errorEl.textContent = "This matches an expense you already saved.";
       errorEl.hidden = false;
@@ -417,6 +420,7 @@ function buildEditForm(expense) {
     editField("Category", category),
     editField("Date", date),
     editField("Note", note),
+    editField("Account", accountField(expense.accountId || "")),
   ];
 
   let repeatBox = null;
@@ -497,6 +501,9 @@ function saveExpenseEdit(editForm) {
   expense.category = next.category;
   expense.date = next.date;
   expense.note = next.note;
+  const accountId = editForm.elements.account ? editForm.elements.account.value : "";
+  if (accountId) expense.accountId = accountId;
+  else delete expense.accountId;
 
   if (editForm.dataset.canRepeat === "yes") {
     const box = editForm.elements.repeats;

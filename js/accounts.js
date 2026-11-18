@@ -508,6 +508,7 @@ function paintReview() {
       mini("Reference", textBox("data-reference", row.reference || "")),
       mini("Income or expense", kindSelect(row.kind)),
       mini("Category", categorySelect(row)),
+      mini("Space", spaceSelect(row)),
       mini("Account", accountChoice(row.accountId))
     );
     const order = row.orderId ? get("orders", row.orderId) : null;
@@ -828,7 +829,7 @@ function moneyInput(id) {
 
 function last4Input() {
   const input = textInput("account-last4", "1234");
-  input.maxLength = 4;
+  input.maxLength = 24;
   input.inputMode = "numeric";
   return input;
 }
@@ -904,16 +905,6 @@ function kindSelect(kind) {
 function categorySelect(row) {
   const select = document.createElement("select");
   select.dataset.category = "";
-  const space = document.createElement("select");
-  space.dataset.space = "";
-  space.hidden = true;
-  ["home", "business"].forEach((value) => {
-    const option = document.createElement("option");
-    option.value = value;
-    option.textContent = value;
-    option.selected = row.space === value;
-    space.append(option);
-  });
   const categories = row.kind === "income" ? ["Income"] : SPACES[row.space === "business" ? "business" : "home"].categories;
   categories.forEach((category) => {
     const option = document.createElement("option");
@@ -922,10 +913,19 @@ function categorySelect(row) {
     option.selected = category === row.category;
     select.append(option);
   });
-  select.dataset.spaceHolder = "1";
-  select.after = null;
-  const wrap = select;
-  wrap._space = space;
+  return select;
+}
+
+function spaceSelect(row) {
+  const select = document.createElement("select");
+  select.dataset.space = "";
+  ["home", "business"].forEach((value) => {
+    const option = document.createElement("option");
+    option.value = value;
+    option.textContent = value === "home" ? "Home" : "Business";
+    option.selected = row.space === value;
+    select.append(option);
+  });
   return select;
 }
 
