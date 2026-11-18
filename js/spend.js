@@ -346,7 +346,7 @@ function buildGroceries() {
   catalog.id = "grocery-catalog";
   catalogDetails.append(summary, catalog);
   const back = backButton();
-  wrap.append(back, title, intro, total, builderHost, dateField, error, actions, templateNote, drafts, catalogDetails);
+  wrap.append(back, title, intro, total, builderHost, dateField, shopField, error, actions, templateNote, drafts, catalogDetails);
   paintBuilder(builderHost);
   paintCatalog(catalog);
   paintDrafts(drafts);

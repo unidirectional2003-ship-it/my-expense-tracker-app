@@ -6,6 +6,7 @@ import { isDuplicateExpense, isDuplicateSale } from "./calc.js";
 import { get, save, update } from "./storage.js";
 import { ensureScreen, registerScreen } from "./router.js";
 import { addExpense } from "./expenses.js";
+import { viewReceiptButton } from "./receipt.js";
 import { render } from "./render.js";
 import { ensureMonth, dueDateFor, payChecklistItem } from "./checklist-model.js";
 import { applyMonthlyGroceryDraft, loadLists, saveLists, TEMPLATE_KEY } from "./grocery.js";
@@ -406,6 +407,8 @@ function buildRow(item) {
     actionButton("Edit", "edit", "edit-approval", item.id, `Edit ${item.title}`),
     actionButton("Reject", "delete", "reject", item.id, `Reject ${item.title}`)
   );
+  const view = viewReceiptButton(item);
+  if (view) actions.append(view);
   row.append(main, actions);
   return row;
 }

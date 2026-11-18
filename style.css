@@ -2070,3 +2070,35 @@ body.settings-open {
   font-size: 1.2rem;
   font-weight: 800;
 }
+
+.verified-badge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--pistachio-deep);
+  font-size: 0.78rem;
+  font-weight: 800;
+  vertical-align: middle;
+}
+
+.scan-staged {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.scan-result.is-match {
+  font-weight: 800;
+}
+
+.scan-result.is-differ,
+#receipt-amount-hint.is-differ {
+  color: #9c3d52;
+  font-weight: 800;
+}
+
+#receipt-amount-hint.is-match {
+  color: #3d6b32;
+  font-weight: 800;
+}
