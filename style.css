@@ -1281,6 +1281,10 @@ body.receipt-open {
   cursor: pointer;
 }
 
+#bill-scan-form[hidden] {
+  display: none !important;
+}
+
 .receipt-dialog {
   position: relative;
   z-index: 1;
