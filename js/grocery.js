@@ -240,6 +240,7 @@ function normalizeList(list) {
             name: line.name.trim().slice(0, 80),
             qty,
             price: price > 0 ? price : null,
+            bought: line.bought === true,
           };
         })
         .filter(Boolean)

@@ -6,6 +6,7 @@ import { budgetSnapshot } from "./budgets.js";
 import { getOverdueChecklistItems } from "./checklist.js";
 import { balanceOf } from "./order-book.js";
 import { refreshBadges } from "./nav.js";
+import { reconcileProblems } from "./accounts.js";
 
 let openList;
 let historyList;
@@ -104,6 +105,7 @@ export function syncAlerts(todayValue = today()) {
     ...checklistProblems(todayValue),
     ...orderProblems(todayValue),
     ...workProblems(todayValue),
+    ...reconcileProblems(),
   ];
   const existing = get("alerts");
   const seen = new Set();

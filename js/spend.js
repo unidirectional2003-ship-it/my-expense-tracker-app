@@ -1,11 +1,13 @@
-import { parseMoney, formatMoney, roundMoney } from "./money.js";
+import { parseMoney, formatMoney, roundMoney, sameMoney } from "./money.js";
 import { today, formatDate } from "./dates.js";
 import { session } from "./session.js";
 import { state } from "./store.js";
 import { isDuplicateExpense } from "./calc.js";
 import { addExpense } from "./expenses.js";
-import { clearStaged } from "./receipt.js";
-import { syncAutoApprovals, updateApprovalsBadge } from "./approvals.js";
+import { clearStaged, onGroceryScan } from "./receipt.js";
+import { queuePendingApproval, syncAutoApprovals, updateApprovalsBadge } from "./approvals.js";
+import { get, save } from "./storage.js";
+import { aliasKey, learnAlias, matchGroceryLine, totalsDisagree } from "./grocery-receipt.js";
 import { goTo, ensureScreen, registerScreen, currentScreen } from "./router.js";
 import {
   loadCatalog,
@@ -13,6 +15,7 @@ import {
   loadTemplate,
   saveTemplate,
   loadLists,
+  saveLists,
   rememberPrice,
   applyMonthlyGroceryDraft,
   visibleItems,
@@ -37,13 +40,14 @@ const BILLS = ["Electricity", "Gas", "Water", "Internet", "Phone", "Rent", "Othe
 const SUPPLIES = ["Packaging", "Fabric", "Stationery", "Tools", "Other"];
 const PEOPLE = ["Me", "Family", "Business stock"];
 
-const builder = { qty: {}, price: {}, checked: {} };
+const builder = { qty: {}, price: {}, checked: {}, bought: {} };
 const built = new Set();
 let showSpace = () => {};
 
 export function bindSpend(options) {
   showSpace = options.showSpace || (() => {});
   fillMenus();
+  onGroceryScan(showGroceryReview);
   const root = document.getElementById("screen-root");
   root.addEventListener("click", (event) => {
     const button = event.target.closest("[data-open-spend]");
@@ -315,6 +319,9 @@ function buildGroceries() {
   shop.maxLength = 80;
   shop.placeholder = "Shop name";
   shopField.append(shopLabel, shop);
+  const review = document.createElement("div");
+  review.id = "grocery-review";
+  review.className = "grocery-review";
   const error = document.createElement("p");
   error.id = "grocery-error";
   error.className = "form-error";
@@ -332,7 +339,14 @@ function buildGroceries() {
   mark.className = "edit-cancel";
   mark.id = "grocery-template";
   mark.textContent = "My monthly grocery list";
-  actions.append(save, mark);
+  const scan = document.createElement("button");
+  scan.type = "button";
+  scan.className = "primary scan-receipt";
+  scan.dataset.scan = "grocery";
+  scan.dataset.scanHost = "groceries";
+  scan.dataset.scanCategory = "Groceries";
+  scan.textContent = "Scan Grocery Receipt";
+  actions.append(scan, save, mark);
   const templateNote = document.createElement("p");
   templateNote.id = "grocery-template-note";
   templateNote.className = "meta";
@@ -346,7 +360,7 @@ function buildGroceries() {
   catalog.id = "grocery-catalog";
   catalogDetails.append(summary, catalog);
   const back = backButton();
-  wrap.append(back, title, intro, total, builderHost, dateField, shopField, error, actions, templateNote, drafts, catalogDetails);
+  wrap.append(back, title, intro, total, builderHost, dateField, shopField, review, error, actions, templateNote, drafts, catalogDetails);
   paintBuilder(builderHost);
   paintCatalog(catalog);
   paintDrafts(drafts);
@@ -393,7 +407,7 @@ function builderRow(item) {
   check.setAttribute("aria-label", `Tick ${item.name}`);
   const name = document.createElement("span");
   name.className = "grocery-name";
-  name.textContent = item.name;
+  name.textContent = builder.bought[item.id] ? `${item.name} · bought` : item.name;
   checkLabel.append(check, name);
   const qty = document.createElement("input");
   qty.type = "number";
@@ -555,7 +569,7 @@ function paintDrafts(host = document.getElementById("grocery-drafts")) {
     list.lines.forEach((line) => {
       const row = document.createElement("li");
       const price = line.price == null ? "Price not remembered yet" : formatMoney(line.price);
-      row.textContent = `${line.name} × ${formatQty(line.qty)} · ${price}`;
+      row.textContent = `${line.bought ? "Bought · " : ""}${line.name} × ${formatQty(line.qty)} · ${price}`;
       items.append(row);
     });
     const use = document.createElement("button");
@@ -584,6 +598,20 @@ function onSpendClick(event) {
   }
   if (event.target.closest("#grocery-save")) {
     saveGroceriesBought();
+    return;
+  }
+  if (event.target.closest("#grocery-receipt-bought")) {
+    saveReceipt(false);
+    return;
+  }
+  if (event.target.closest("#grocery-receipt-approval")) {
+    saveReceipt(true);
+    return;
+  }
+  const dropLine = event.target.closest("[data-review-delete]");
+  if (dropLine) {
+    dropLine.closest("tr")?.remove();
+    refreshReceiptTotals();
     return;
   }
   if (event.target.closest("#grocery-template")) {
@@ -637,6 +665,16 @@ function onSpendSubmit(event) {
 }
 
 function onSpendInput(event) {
+  const reviewName = event.target.closest("[data-review-name]");
+  if (reviewName) {
+    retargetReviewRow(reviewName.closest("tr"));
+    refreshReceiptTotals();
+    return;
+  }
+  if (event.target.closest("#grocery-review")) {
+    refreshReceiptTotals();
+    return;
+  }
   const qty = event.target.closest("[data-grocery-qty]");
   if (qty) {
     builder.qty[qty.dataset.groceryQty] = qty.value;
@@ -651,9 +689,16 @@ function onSpendInput(event) {
 }
 
 function onSpendChange(event) {
+  if (event.target.closest("#grocery-review")) {
+    refreshReceiptTotals();
+    return;
+  }
   const check = event.target.closest("[data-grocery-check]");
   if (check) {
     builder.checked[check.dataset.groceryCheck] = check.checked;
+    if (!check.checked) delete builder.bought[check.dataset.groceryCheck];
+    const name = check.parentElement?.querySelector(".grocery-name");
+    if (name && !check.checked) name.textContent = name.textContent.replace(/ · bought$/, "");
     updateGroceryTotal();
     return;
   }
@@ -697,7 +742,7 @@ function selectedLines({ requirePrice }) {
   let invalidPrice = false;
   let invalidQty = false;
   visibleItems(catalog).forEach((item) => {
-    if (!builder.checked[item.id]) return;
+    if (!builder.checked[item.id] || builder.bought[item.id]) return;
     const qty = parseQty(builder.qty[item.id] || "1");
     const price = parseMoney(builder.price[item.id] ?? "");
     if (!qty.ok) invalidQty = true;
@@ -711,7 +756,7 @@ function selectedLines({ requirePrice }) {
       lineTotal: price.ok ? roundMoney(qty.value * price.value) : 0,
     });
   });
-  const ticked = visibleItems(catalog).filter((item) => builder.checked[item.id]).length;
+  const ticked = visibleItems(catalog).filter((item) => builder.checked[item.id] && !builder.bought[item.id]).length;
   return { rows, invalidPrice, invalidQty, ticked };
 }
 
@@ -762,6 +807,450 @@ function saveGroceriesBought() {
   document.getElementById("spend-recent-groceries")?.scrollIntoView({ block: "nearest" });
 }
 
+let receiptPhoto = "";
+
+const RECEIPT_TIP = "Lay the receipt flat, in good light, with no shadow, and the whole receipt in the photo.";
+
+export function applyGroceryReceipt(payload) {
+  showGroceryReview(payload);
+}
+
+function showGroceryReview(payload) {
+  if (!built.has("groceries")) showKind(KINDS[0]);
+  goTo("groceries");
+  const host = document.getElementById("grocery-review");
+  if (!host) return;
+  receiptPhoto = typeof payload?.image === "string" ? payload.image : "";
+  const parsed = payload?.parsed;
+  if (!payload || payload.failed || !parsed?.readable) {
+    paintReceiptFallback(host);
+    return;
+  }
+  paintReceiptReview(host, parsed);
+}
+
+function paintReceiptFallback(host) {
+  host.replaceChildren();
+  const title = document.createElement("h3");
+  title.textContent = "Receipt not read";
+  const message = document.createElement("p");
+  message.className = "form-error";
+  message.textContent = "This receipt could not be read. Nothing was saved. Type the items in the grocery list instead.";
+  const tip = document.createElement("p");
+  tip.className = "meta";
+  tip.textContent = RECEIPT_TIP;
+  host.append(title, message, tip);
+  receiptPhoto = "";
+}
+
+function paintReceiptReview(host, parsed) {
+  host.replaceChildren();
+  const catalog = loadCatalog();
+  const aliases = get("receiptAliases");
+  const title = document.createElement("h3");
+  title.textContent = "Check this receipt";
+  const shop = document.createElement("p");
+  shop.className = "meta";
+  shop.textContent = `${parsed.merchant || "Shop not read"} · ${parsed.date || "Date not read"}`;
+  if (parsed.merchant) {
+    const shopField = document.getElementById("grocery-shop");
+    if (shopField) shopField.value = parsed.merchant;
+  }
+  if (parsed.date) {
+    const dateField = document.getElementById("grocery-date");
+    if (dateField) dateField.value = parsed.date;
+  }
+  const duplicate = document.createElement("p");
+  duplicate.id = "grocery-receipt-duplicate";
+  duplicate.className = "form-error";
+  duplicate.hidden = true;
+  const compare = document.createElement("p");
+  compare.id = "grocery-receipt-compare";
+  compare.className = "meta";
+  const mismatch = document.createElement("p");
+  mismatch.id = "grocery-receipt-mismatch";
+  mismatch.className = "form-error";
+  mismatch.hidden = true;
+  const table = document.createElement("table");
+  const head = document.createElement("thead");
+  const headRow = document.createElement("tr");
+  ["Include", "Item", "Qty", "Price", "Group", ""].forEach((label) => {
+    const cell = document.createElement("th");
+    cell.textContent = label;
+    headRow.append(cell);
+  });
+  head.append(headRow);
+  const body = document.createElement("tbody");
+  parsed.items.forEach((item) => {
+    body.append(reviewRow(item, catalog, aliases));
+  });
+  table.append(head, body);
+  const saveError = document.createElement("p");
+  saveError.id = "grocery-receipt-error";
+  saveError.className = "form-error";
+  saveError.setAttribute("role", "alert");
+  saveError.hidden = true;
+  const actions = document.createElement("div");
+  actions.className = "add-actions";
+  const bought = document.createElement("button");
+  bought.type = "button";
+  bought.className = "primary";
+  bought.id = "grocery-receipt-bought";
+  bought.textContent = "Save as Bought";
+  const approval = document.createElement("button");
+  approval.type = "button";
+  approval.className = "edit-cancel";
+  approval.id = "grocery-receipt-approval";
+  approval.textContent = "Save for Approval";
+  actions.append(bought, approval);
+  host.dataset.receiptTotal = parsed.total == null ? "" : String(parsed.total);
+  host.dataset.receiptShop = parsed.merchant || "";
+  host.dataset.receiptDate = parsed.date || "";
+  host.append(title, shop, duplicate, compare, mismatch, table, saveError, actions);
+  refreshReceiptTotals();
+}
+
+function reviewRow(item, catalog, aliases) {
+  const match = matchGroceryLine(item.ocrName, catalog, aliases);
+  const tr = document.createElement("tr");
+  if (item.unsure) tr.classList.add("grocery-unsure");
+  tr.dataset.ocrName = item.ocrName;
+  tr.dataset.suggestedId = match?.item.id || "";
+  tr.dataset.itemId = match?.item.id || "";
+  tr.dataset.matchedName = match?.item.name || "";
+  const includeCell = document.createElement("td");
+  const include = document.createElement("input");
+  include.type = "checkbox";
+  include.dataset.reviewInclude = "yes";
+  include.checked = true;
+  include.setAttribute("aria-label", `Include ${item.ocrName}`);
+  includeCell.append(include);
+  const nameCell = document.createElement("td");
+  const name = document.createElement("input");
+  name.type = "text";
+  name.dataset.reviewName = "yes";
+  name.value = match?.item.name || item.ocrName;
+  name.maxLength = 60;
+  name.setAttribute("aria-label", "Item name");
+  nameCell.append(name);
+  if (item.unsure) {
+    const note = document.createElement("span");
+    note.className = "meta";
+    note.textContent = " Check this line";
+    nameCell.append(note);
+  }
+  const qtyCell = document.createElement("td");
+  const qty = document.createElement("input");
+  qty.type = "number";
+  qty.dataset.reviewQty = "yes";
+  qty.min = "0.01";
+  qty.step = "0.01";
+  qty.value = item.qty == null ? "" : String(item.qty);
+  qty.setAttribute("aria-label", "Quantity");
+  qtyCell.append(qty);
+  const priceCell = document.createElement("td");
+  const price = document.createElement("input");
+  price.type = "number";
+  price.dataset.reviewPrice = "yes";
+  price.min = "0.01";
+  price.step = "0.01";
+  price.value = item.unitPrice == null ? "" : String(item.unitPrice);
+  price.setAttribute("aria-label", "Price");
+  priceCell.append(price);
+  const groupCell = document.createElement("td");
+  const group = document.createElement("select");
+  group.dataset.reviewGroup = "yes";
+  group.setAttribute("aria-label", "Group");
+  const placeholder = document.createElement("option");
+  placeholder.value = "";
+  placeholder.textContent = "Choose a group";
+  group.append(placeholder);
+  catalog.groups.forEach((entry) => {
+    const option = document.createElement("option");
+    option.value = entry.id;
+    option.textContent = entry.name;
+    group.append(option);
+  });
+  group.value = match?.item.groupId || "";
+  groupCell.append(group);
+  const deleteCell = document.createElement("td");
+  const remove = document.createElement("button");
+  remove.type = "button";
+  remove.className = "delete tiny";
+  remove.dataset.reviewDelete = "yes";
+  remove.textContent = "Delete";
+  deleteCell.append(remove);
+  tr.append(includeCell, nameCell, qtyCell, priceCell, groupCell, deleteCell);
+  return tr;
+}
+
+function retargetReviewRow(tr) {
+  if (!tr) return;
+  const typed = tr.querySelector("[data-review-name]")?.value.trim() || "";
+  const catalog = loadCatalog();
+  const exact = catalog.items.find((item) => !item.hidden && item.name.toLowerCase() === typed.toLowerCase());
+  const group = tr.querySelector("[data-review-group]");
+  if (exact) {
+    tr.dataset.itemId = exact.id;
+    tr.dataset.matchedName = exact.name;
+    if (group) group.value = exact.groupId;
+    return;
+  }
+  tr.dataset.itemId = "";
+  tr.dataset.matchedName = "";
+}
+
+function refreshReceiptTotals() {
+  const host = document.getElementById("grocery-review");
+  const compare = document.getElementById("grocery-receipt-compare");
+  const mismatch = document.getElementById("grocery-receipt-mismatch");
+  const duplicate = document.getElementById("grocery-receipt-duplicate");
+  if (!host || !compare || !mismatch) return;
+  const rows = collectReviewRows().filter((row) => row.include && row.qty.ok && row.price.ok);
+  const sum = roundMoney(rows.reduce((total, row) => total + row.qty.value * row.price.value, 0));
+  const receiptTotal = host.dataset.receiptTotal === "" ? null : Number(host.dataset.receiptTotal);
+  const receiptText = receiptTotal == null ? "could not be read" : formatMoney(receiptTotal);
+  compare.textContent = `Items add up to ${formatMoney(sum)}, receipt says ${receiptText}.`;
+  const differ = totalsDisagree(sum, receiptTotal);
+  mismatch.hidden = !differ;
+  mismatch.textContent = differ ? "These totals do not match. Check the lines before you save." : "";
+  if (duplicate) {
+    const shop = host.dataset.receiptShop || "";
+    const date = host.dataset.receiptDate || "";
+    const hit = receiptTotal != null && duplicateReceipt(shop, date, receiptTotal);
+    duplicate.hidden = !hit;
+    duplicate.textContent = hit ? "This looks like a receipt you already saved: same shop, date, and total." : "";
+  }
+}
+
+function collectReviewRows() {
+  const rows = [];
+  document.querySelectorAll("#grocery-review tbody tr").forEach((tr) => {
+    const include = tr.querySelector("[data-review-include]");
+    const typedName = tr.querySelector("[data-review-name]")?.value.trim() || "";
+    const qty = parseQty(tr.querySelector("[data-review-qty]")?.value);
+    const price = parseMoney(tr.querySelector("[data-review-price]")?.value);
+    const groupId = tr.querySelector("[data-review-group]")?.value || "";
+    const nameStillMatched = typedName.toLowerCase() === (tr.dataset.matchedName || "").toLowerCase() && tr.dataset.itemId;
+    rows.push({
+      include: include ? include.checked : false,
+      typedName,
+      ocrName: tr.dataset.ocrName || typedName,
+      suggestedId: tr.dataset.suggestedId || "",
+      itemId: nameStillMatched ? tr.dataset.itemId : "",
+      groupId,
+      qty,
+      price,
+    });
+  });
+  return rows;
+}
+
+function duplicateReceipt(shop, date, total) {
+  const key = shop.trim().toLowerCase();
+  if (!key || !date || !(Number(total) > 0)) return false;
+  const expenses = state.spaces.home || [];
+  if (
+    expenses.some(
+      (expense) =>
+        (expense.merchant || "").trim().toLowerCase() === key &&
+        expense.date === date &&
+        sameMoney(expense.amount, total)
+    )
+  ) {
+    return true;
+  }
+  return get("pendingApprovals").some(
+    (item) =>
+      (item.status || "waiting") === "waiting" &&
+      (item.merchant || "").trim().toLowerCase() === key &&
+      item.date === date &&
+      sameMoney(item.amount, total)
+  );
+}
+
+function saveReceipt(forApproval) {
+  const error = document.getElementById("grocery-receipt-error");
+  const host = document.getElementById("grocery-review");
+  if (!error || !host) return;
+  const date = document.getElementById("grocery-date")?.value || host.dataset.receiptDate || "";
+  const shop = document.getElementById("grocery-shop")?.value.trim() || host.dataset.receiptShop || "";
+  const chosen = collectReviewRows().filter((row) => row.include);
+  if (!date) {
+    showReceiptError(error, "Choose the date of this shop.");
+    return;
+  }
+  if (!chosen.length) {
+    showReceiptError(error, "Choose at least one item to save.");
+    return;
+  }
+  if (chosen.some((row) => !row.typedName)) {
+    showReceiptError(error, "Each item needs a name.");
+    return;
+  }
+  if (chosen.some((row) => !row.qty.ok)) {
+    showReceiptError(error, "Use a quantity greater than 0.");
+    return;
+  }
+  if (chosen.some((row) => !row.price.ok)) {
+    showReceiptError(error, "Type a price for each item.");
+    return;
+  }
+  if (chosen.some((row) => !row.itemId && !row.groupId)) {
+    showReceiptError(error, "Choose a group for each new item.");
+    return;
+  }
+  let catalog = loadCatalog();
+  const lines = chosen.map((row) => {
+    let itemId = row.itemId;
+    if (!itemId) {
+      itemId = createCatalogItem(catalog, row.typedName, row.groupId, row.price.value);
+      row.itemId = itemId;
+    } else if (row.groupId) {
+      catalog.items = catalog.items.map((item) => (item.id === itemId ? { ...item, groupId: row.groupId } : item));
+    }
+    const item = catalog.items.find((entry) => entry.id === itemId);
+    const qty = row.qty.value;
+    const price = row.price.value;
+    return {
+      itemId,
+      name: item?.name || row.typedName,
+      qty,
+      price,
+      lineTotal: roundMoney(qty * price),
+      ocrName: row.ocrName,
+      suggestedId: row.suggestedId,
+    };
+  });
+  chosen.forEach((row) => {
+    if (!row.itemId || row.itemId === row.suggestedId) return;
+    if (!aliasKey(row.ocrName)) return;
+    const [alias] = learnAlias([], row.ocrName, row.itemId);
+    if (alias) save("receiptAliases", alias);
+  });
+  const amount = roundMoney(lines.reduce((sum, line) => sum + line.lineTotal, 0));
+  const note = groceryNote(lines);
+  const expenseId = crypto.randomUUID();
+  const receiptId = storeReceiptPhoto(receiptPhoto, expenseId);
+  if (forApproval) {
+    const queued = queuePendingApproval({
+      source: "Auto: Grocery receipt",
+      sourceKey: `grocery-receipt:${expenseId}`,
+      kind: "expense",
+      space: "home",
+      title: note,
+      note,
+      category: "Groceries",
+      subcategory: "Grocery list",
+      amount,
+      date,
+      month: date.slice(0, 7),
+      merchant: shop,
+      receiptId,
+      lines,
+    });
+    if (!queued) {
+      showReceiptError(error, "This receipt is already waiting for approval.");
+      return;
+    }
+    error.hidden = true;
+    host.replaceChildren();
+    receiptPhoto = "";
+    const groceryError = document.getElementById("grocery-error");
+    if (groceryError) {
+      groceryError.hidden = false;
+      groceryError.textContent = "Sent for approval. Nothing was added to expenses yet.";
+    }
+    updateApprovalsBadge();
+    return;
+  }
+  lines.forEach((line) => {
+    catalog = rememberPrice(catalog, line.itemId, line.price);
+  });
+  saveCatalog(catalog);
+  const expense = {
+    id: expenseId,
+    amount,
+    category: "Groceries",
+    subcategory: "Grocery list",
+    date,
+    note,
+    lines: lines.map(({ itemId, name, qty, price, lineTotal }) => ({ itemId, name, qty, price, lineTotal })),
+    merchant: shop,
+    receiptId,
+  };
+  if (isDuplicateExpense(state.spaces.home, expense)) {
+    showReceiptError(error, "This matches an expense you already saved.");
+    return;
+  }
+  addExpense("home", expense);
+  tickBought(lines);
+  error.hidden = true;
+  host.replaceChildren();
+  receiptPhoto = "";
+  const groceryError = document.getElementById("grocery-error");
+  if (groceryError) groceryError.hidden = true;
+  paintRecent(KINDS[0]);
+}
+
+function showReceiptError(error, message) {
+  error.hidden = false;
+  error.textContent = message;
+}
+
+function createCatalogItem(catalog, name, groupId, price) {
+  const id = `custom-${crypto.randomUUID()}`;
+  catalog.items.push({
+    id,
+    groupId,
+    name: name.slice(0, 60),
+    hidden: false,
+    lastPrice: price > 0 ? roundMoney(price) : null,
+  });
+  return id;
+}
+
+function storeReceiptPhoto(image, entityId) {
+  if (typeof image !== "string" || !image.startsWith("data:image/")) return "";
+  try {
+    const saved = save("receipts", {
+      dataUrl: image,
+      entityType: "expense",
+      entityId,
+      createdAt: new Date().toISOString(),
+    });
+    return saved?.id || "";
+  } catch {
+    return "";
+  }
+}
+
+function tickBought(lines) {
+  const month = today().slice(0, 7);
+  const lists = loadLists();
+  const ids = new Set(lines.map((line) => line.itemId));
+  let changed = false;
+  lists.forEach((list) => {
+    if (list.month !== month) return;
+    list.lines.forEach((line) => {
+      if (!ids.has(line.itemId) || line.bought) return;
+      line.bought = true;
+      changed = true;
+    });
+  });
+  if (changed) saveLists(lists);
+  lines.forEach((line) => {
+    builder.bought[line.itemId] = true;
+    builder.checked[line.itemId] = true;
+    builder.qty[line.itemId] = String(line.qty);
+    builder.price[line.itemId] = String(line.price);
+  });
+  paintBuilder();
+  paintCatalog();
+  paintDrafts();
+  updateGroceryTotal();
+}
+
 function markMonthlyTemplate() {
   const error = document.getElementById("grocery-error");
   const { rows, invalidQty, ticked } = selectedLines({ requirePrice: false });
@@ -806,6 +1295,7 @@ function updateGroceryTotal() {
   if (!total) return;
   let sum = 0;
   document.querySelectorAll("[data-grocery-check]:checked").forEach((box) => {
+    if (builder.bought[box.dataset.groceryCheck]) return;
     const qty = parseQty(document.querySelector(`[data-grocery-qty="${CSS.escape(box.dataset.groceryCheck)}"]`)?.value);
     const price = parseMoney(document.querySelector(`[data-grocery-price="${CSS.escape(box.dataset.groceryCheck)}"]`)?.value);
     if (qty.ok && price.ok) sum += qty.value * price.value;

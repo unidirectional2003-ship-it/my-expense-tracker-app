@@ -20,6 +20,8 @@ export const COLLECTIONS = [
   "settings",
   "receipts",
   "cities",
+  "receiptAliases",
+  "accounts",
 ];
 
 const DB_KEY = "tracker-db";

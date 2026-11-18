@@ -320,6 +320,29 @@ function normalizePending(input) {
   copyOptional(input, record, "merchant");
   copyOptional(input, record, "receiptId");
   copyOptional(input, record, "customer");
+  copyOptional(input, record, "subcategory");
+  copyOptional(input, record, "accountId");
+  copyOptional(input, record, "reference");
+  if (Array.isArray(input.lines)) {
+    const lines = input.lines
+      .map((line) => {
+        if (!line || typeof line.name !== "string") return null;
+        const name = line.name.trim().slice(0, 80);
+        const qty = roundMoney(Number(line.qty));
+        const price = roundMoney(Number(line.price));
+        const lineTotal = roundMoney(Number(line.lineTotal || qty * price));
+        if (!name || !(qty > 0) || !(price > 0)) return null;
+        return {
+          itemId: typeof line.itemId === "string" ? line.itemId.slice(0, 80) : "",
+          name,
+          qty,
+          price,
+          lineTotal,
+        };
+      })
+      .filter(Boolean);
+    if (lines.length) record.lines = lines;
+  }
   if (knownKeys().has(sourceKey) && !input.id) return null;
   return record;
 }
@@ -626,6 +649,8 @@ function commitApproval(item, options = {}) {
       earnedAmount: item.amount,
       cashReceived: item.amount,
     };
+    if (item.accountId) sale.accountId = item.accountId;
+    if (item.reference) sale.reference = item.reference;
     if (isDuplicateSale(state.sales, sale)) {
       return { ok: false, error: "This matches income you already saved." };
     }
@@ -641,7 +666,11 @@ function commitApproval(item, options = {}) {
     };
     if (item.merchant) expense.merchant = item.merchant;
     if (item.receiptId) expense.receiptId = item.receiptId;
+    if (item.accountId) expense.accountId = item.accountId;
+    if (item.reference) expense.reference = item.reference;
     if (item.seriesId) expense.seriesId = item.seriesId;
+    if (item.subcategory) expense.subcategory = item.subcategory;
+    if (Array.isArray(item.lines) && item.lines.length) expense.lines = item.lines;
     if (isDuplicateExpense(state.spaces[item.space], expense)) {
       return { ok: false, error: "This matches an expense you already saved." };
     }

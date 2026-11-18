@@ -60,6 +60,8 @@ function expenseSignature(expense) {
     person: expense.person || undefined,
     receiptHook: expense.receiptHook || undefined,
     lines: expense.lines || undefined,
+    accountId: expense.accountId || undefined,
+    reference: expense.reference || undefined,
   });
 }
 
@@ -103,6 +105,8 @@ export function normalizeExpense(expense) {
   copyText(expense, next, "size", 40);
   copyText(expense, next, "person", 40);
   copyText(expense, next, "receiptHook", 120);
+  copyText(expense, next, "reference", 24);
+  if (typeof expense.accountId === "string" && expense.accountId) next.accountId = expense.accountId;
   if (Array.isArray(expense.lines)) {
     const lines = expense.lines.map(normalizeLine).filter(Boolean);
     if (lines.length) next.lines = lines;
@@ -184,6 +188,8 @@ function normalizeSale(sale) {
   if (typeof sale.paymentProofId === "string" && sale.paymentProofId) next.paymentProofId = sale.paymentProofId;
   if (typeof sale.proofAmount === "number" && Number.isFinite(sale.proofAmount)) next.proofAmount = roundMoney(sale.proofAmount);
   if (typeof sale.proofDate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(sale.proofDate)) next.proofDate = sale.proofDate;
+  if (typeof sale.accountId === "string" && sale.accountId) next.accountId = sale.accountId;
+  if (typeof sale.reference === "string" && sale.reference.trim()) next.reference = sale.reference.trim().slice(0, 24);
   const changed =
     sale.kind !== next.kind ||
     sale.amount !== next.amount ||

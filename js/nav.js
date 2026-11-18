@@ -4,6 +4,7 @@ import { goTo, onRoute } from "./router.js";
 
 export const MENU = [
   { screen: "home", label: "Home", tab: true },
+  { screen: "accounts", label: "Accounts" },
   { screen: "approvals", label: "Pending Approvals", tabLabel: "Pending Approvals", tab: true, badge: "approvals" },
   { screen: "orders", label: "Orders", tab: true },
   { screen: "work", label: "Work", tab: true },

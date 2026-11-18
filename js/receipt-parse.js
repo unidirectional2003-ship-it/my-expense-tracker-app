@@ -183,7 +183,7 @@ function findAmounts(text) {
     if (!Number.isFinite(value) || value <= 0) continue;
     if (!hasComma && !hasDecimal && value >= 1900 && value <= 2100) continue;
     if (!hasComma && !hasDecimal && !hasCurrency && String(Math.round(value)).length >= 8) continue;
-    results.push({ value, hasCurrency, hasComma, hasDecimal });
+    results.push({ value, hasCurrency, hasComma, hasDecimal, raw: match[0] });
   }
   return results;
 }
@@ -294,4 +294,114 @@ function guessCategoryKey(text, merchant) {
 function hasTerm(text, term) {
   const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   return new RegExp(`(?:^|[^a-z0-9])${escaped}(?:[^a-z0-9]|$)`, "i").test(text);
+}
+
+const SKIP_LINE =
+  /^(tel|phone|ph|mob|mobile|ntn|strn|pos|inv|invoice|bill|cash|card|change|discount|vat|gst|tax|sub\s*total|subtotal|grand|total|amount|balance|paid|thank|welcome|customer|qty|item|description|price|rate)\b/i;
+
+/**
+ * Reads one shop receipt line by line.
+ * Returns the shop, date, receipt total, and each item with quantity,
+ * unit price, and line total. Nothing is saved.
+ */
+export function parseGroceryReceipt(text, confidence = 0, ocrLines = []) {
+  const header = parseReceipt(text);
+  const rawLines = String(text || "")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const byLine = new Map();
+  ocrLines.forEach((line) => {
+    const key = String(line?.text || "").trim();
+    if (key) byLine.set(key, Number(line.confidence));
+  });
+  const overall = Number(confidence);
+  const items = [];
+  rawLines.forEach((line) => {
+    const lineConfidence = byLine.has(line) ? byLine.get(line) : overall;
+    const item = readGroceryLine(line, lineConfidence);
+    if (item) items.push(item);
+  });
+  const weak = overall > 0 && overall < 30;
+  return {
+    merchant: header.merchant,
+    date: header.date,
+    total: header.amount,
+    items,
+    readable: items.length > 0 && !weak,
+  };
+}
+
+function readGroceryLine(line, confidence) {
+  if (line.length < 2 || line.length > 140) return null;
+  if (SKIP_LINE.test(line)) return null;
+  if (lineRank(line) > 0) return null;
+  if (extractDate(line) && line.replace(/[0-9/.-]/g, "").trim().length < 8) return null;
+  const sized = line.replace(/\b\d+(?:[./]\d+)?\s?(?:kg|g|gm|gms|ml|ltr|litre|liter|l|pcs|pc|pkt|pack)\b/gi, " ");
+  const amounts = findAmounts(sized);
+  if (!amounts.length) return null;
+  if (
+    amounts.length === 1 &&
+    !amounts[0].hasDecimal &&
+    !amounts[0].hasCurrency &&
+    /shop|plot|block|street|road|phase|sector|floor|near/i.test(line)
+  ) {
+    return null;
+  }
+  const parsed = splitQtyPrice(amounts);
+  const name = itemName(sized, amounts);
+  if (!name || /^(rs|pkr|qty|pcs|pc|kg|g|ml|ltr)$/i.test(name)) return null;
+  const mismatch =
+    parsed.qty != null &&
+    parsed.unitPrice != null &&
+    parsed.lineTotal != null &&
+    Math.abs(parsed.qty * parsed.unitPrice - parsed.lineTotal) > 1.5;
+  const lowConfidence = Number(confidence) > 0 && Number(confidence) < 60;
+  return {
+    ocrName: name,
+    name,
+    qty: parsed.qty,
+    unitPrice: parsed.unitPrice,
+    lineTotal: parsed.lineTotal,
+    unsure: lowConfidence || mismatch || parsed.unsure || parsed.unitPrice == null,
+  };
+}
+
+function splitQtyPrice(amounts) {
+  const values = amounts.map((amount) => amount.value);
+  if (values.length >= 3) {
+    const qty = values[values.length - 3];
+    const unit = values[values.length - 2];
+    const total = values[values.length - 1];
+    const looksLikeQty = qty > 0 && qty <= 50 && Math.abs(qty - Math.round(qty)) < 0.01;
+    const count = looksLikeQty ? Math.round(qty) : 1;
+    return {
+      qty: count,
+      unitPrice: unit,
+      lineTotal: total,
+      unsure: !looksLikeQty || Math.abs(count * unit - total) > 1.5,
+    };
+  }
+  if (values.length === 2) {
+    const first = values[0];
+    const second = values[1];
+    const firstIsQty = first > 0 && first <= 30 && Math.abs(first - Math.round(first)) < 0.01 && first < second;
+    if (firstIsQty) {
+      return { qty: Math.round(first), unitPrice: roundMoney(second / first), lineTotal: second, unsure: false };
+    }
+    return { qty: 1, unitPrice: first, lineTotal: second, unsure: Math.abs(first - second) > 1.5 };
+  }
+  return { qty: 1, unitPrice: values[0], lineTotal: values[0], unsure: false };
+}
+
+function itemName(line, amounts) {
+  let name = line;
+  amounts.forEach((amount) => {
+    if (amount.raw) name = name.replace(amount.raw, " ");
+  });
+  name = name
+    .replace(/[x×=*]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return name.slice(0, 80);
 }
