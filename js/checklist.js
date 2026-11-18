@@ -649,6 +649,50 @@ function renderGroceries() {
   groceriesView.append(wrap);
 }
 
+function renderSurcharge() {
+  let box = document.getElementById("checklist-surcharge");
+  if (!pendingSurcharge) {
+    if (box) box.remove();
+    return;
+  }
+  if (!box) {
+    box = document.createElement("div");
+    box.id = "checklist-surcharge";
+    listView.insertBefore(box, listEl);
+  }
+  const copy = document.createElement("p");
+  copy.className = "meta";
+  copy.textContent = `Paid after the due date. Record the late surcharge of ${formatMoney(pendingSurcharge.surcharge)} as a separate expense?`;
+  const yes = document.createElement("button");
+  yes.type = "button";
+  yes.className = "primary";
+  yes.textContent = "Record surcharge";
+  const no = document.createElement("button");
+  no.type = "button";
+  no.className = "edit-cancel";
+  no.textContent = "Not now";
+  const actions = document.createElement("div");
+  actions.className = "edit-actions";
+  actions.append(yes, no);
+  box.replaceChildren(copy, actions);
+  yes.addEventListener("click", () => {
+    state.spaces.home.unshift({
+      id: crypto.randomUUID(),
+      amount: pendingSurcharge.surcharge,
+      category: "Bills",
+      date: today(),
+      note: `Late surcharge · ${pendingSurcharge.name}`.slice(0, 120),
+    });
+    pendingSurcharge = null;
+    saveSpaces();
+    render();
+  });
+  no.addEventListener("click", () => {
+    pendingSurcharge = null;
+    render();
+  });
+}
+
 function commitPayment(item, amount) {
   const month = selectedMonth();
   const due = dueDateFor(item, month);
