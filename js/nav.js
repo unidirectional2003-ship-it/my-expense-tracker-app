@@ -16,7 +16,7 @@ export const MENU = [
   { screen: "supplies", label: "Business Supplies" },
   { screen: "other", label: "Other" },
   { screen: "checklist", label: "Checklist", tab: true },
-  { screen: "alerts", label: "Alerts", badge: "alerts" },
+  { screen: "alerts", label: "Alerts", tab: true, badge: "alerts" },
   { screen: "budgets", label: "Budgets" },
   { screen: "reports", label: "Reports" },
   { screen: "settings", label: "Settings" },
