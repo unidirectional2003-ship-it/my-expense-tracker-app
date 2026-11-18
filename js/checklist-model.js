@@ -12,8 +12,6 @@ export const DEFAULT_CHECKLIST_ITEMS = [
   { name: "Others", dueDay: 28, category: "Other" },
 ];
 
-const HOME_CATEGORIES = ["Groceries", "Bills", "Rent", "Kids", "Transport", "Health", "Shopping", "Other"];
-
 export function categoryForChecklistName(name) {
   const match = DEFAULT_CHECKLIST_ITEMS.find((item) => item.name.toLowerCase() === String(name).trim().toLowerCase());
   return match ? match.category : "Other";
@@ -329,7 +327,7 @@ function sortTemplates(items) {
 }
 
 function cleanCategory(category, name) {
-  if (typeof category === "string" && HOME_CATEGORIES.includes(category)) return category;
+  if (typeof category === "string" && category.trim()) return category.trim();
   return categoryForChecklistName(name);
 }
 
