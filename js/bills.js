@@ -3,6 +3,7 @@ import { today, formatDate } from "./dates.js";
 import { state, saveBills } from "./store.js";
 import { isDuplicateBill, upcomingBills } from "./calc.js";
 import { render } from "./render.js";
+import { attachBillReceipt, clearStaged, viewReceiptButton } from "./receipt.js";
 
 const form = document.getElementById("bill-form");
 const nameInput = document.getElementById("bill-name");
@@ -39,9 +40,17 @@ export function bindBills() {
       nameInput.focus();
       return;
     }
-    state.bills.unshift({ id: crypto.randomUUID(), ...bill });
+    const saved = { id: crypto.randomUUID(), ...bill };
+    state.bills.unshift(saved);
+    try {
+      attachBillReceipt(saved);
+    } catch {
+      errorEl.textContent = "The bill was saved, but the photo could not be stored on this device.";
+      errorEl.hidden = false;
+    }
     saveBills();
     render();
+    clearStaged(form);
     form.reset();
     dueInput.value = today();
     spaceInput.value = "home";
@@ -115,6 +124,8 @@ export function renderBills(month) {
       remove.dataset.billId = bill.id;
       remove.textContent = "Delete";
       remove.setAttribute("aria-label", `Delete bill ${bill.name}`);
+      const view = viewReceiptButton(bill);
+      if (view) actions.append(view);
       actions.append(toggle, remove);
       item.append(main, actions);
       return item;

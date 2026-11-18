@@ -302,6 +302,18 @@ function buildGroceries() {
   date.type = "date";
   date.value = today();
   dateField.append(dateLabel, date);
+  const shopField = document.createElement("div");
+  shopField.className = "field";
+  const shopLabel = document.createElement("label");
+  shopLabel.htmlFor = "grocery-shop";
+  shopLabel.textContent = "Shop";
+  const shop = document.createElement("input");
+  shop.id = "grocery-shop";
+  shop.name = "shop";
+  shop.type = "text";
+  shop.maxLength = 80;
+  shop.placeholder = "Shop name";
+  shopField.append(shopLabel, shop);
   const error = document.createElement("p");
   error.id = "grocery-error";
   error.className = "form-error";
@@ -738,6 +750,7 @@ function saveGroceriesBought() {
   });
   saveCatalog(catalog);
   addExpense("home", expense);
+  clearStaged(document.querySelector("[data-spend-panel='groceries']"));
   error.hidden = true;
   rows.forEach((line) => {
     builder.checked[line.itemId] = false;
@@ -989,6 +1002,7 @@ function saveEntry(form) {
     date,
     note: notes || itemName,
     itemName,
+    scanHost: kind,
   };
   if (subcategory) expense.subcategory = subcategory;
   if (form.elements.brand && form.elements.brand.value.trim()) expense.brand = form.elements.brand.value.trim();
@@ -1010,12 +1024,14 @@ function saveEntry(form) {
     spaceName = "business";
   }
   if (kind === "other") expense.category = "Other";
+  expense.scanHost = kind;
   if (isDuplicateExpense(state.spaces[spaceName], expense)) {
     error.hidden = false;
     error.textContent = "This matches an expense you already saved.";
     return;
   }
   addExpense(spaceName, expense);
+  clearStaged(form);
   error.hidden = true;
   const keepDate = date;
   form.reset();

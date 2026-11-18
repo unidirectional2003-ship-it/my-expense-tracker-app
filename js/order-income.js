@@ -4,7 +4,7 @@ import { roundMoney } from "./money.js";
 function saleFromPayment(order, payment) {
   const fulfilled = order.status === "Fulfilled";
   const amount = roundMoney(payment.amount);
-  return {
+  const next = {
     id: `pay-${payment.id}`,
     amount,
     date: payment.date,
@@ -16,6 +16,11 @@ function saleFromPayment(order, payment) {
     orderId: order.id,
     paymentId: payment.id,
   };
+  if (payment.verified === true || payment.verified === false) next.verified = payment.verified === true;
+  if (typeof payment.receiptId === "string" && payment.receiptId) next.paymentProofId = payment.receiptId;
+  if (typeof payment.proofAmount === "number") next.proofAmount = payment.proofAmount;
+  if (typeof payment.proofDate === "string") next.proofDate = payment.proofDate;
+  return next;
 }
 
 export function recordPaymentIncome(order, payment) {

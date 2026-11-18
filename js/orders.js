@@ -2,7 +2,8 @@ import { formatMoney } from "./money.js";
 import { today, formatDate } from "./dates.js";
 import { get } from "./storage.js";
 import { ensureScreen, registerScreen } from "./router.js";
-import { attachReceipt } from "./receipt-hook.js";
+import { attachReceipt, pinReceipt } from "./receipt-hook.js";
+import { viewReceiptButton } from "./receipt.js";
 import {
   ORDER_STATUSES,
   PAYMENT_STATUSES,
@@ -165,6 +166,19 @@ function orderCard(order) {
     order.payments.forEach((payment) => {
       const line = document.createElement("li");
       line.textContent = `${formatDate(payment.date)} · ${formatMoney(payment.amount)} · ${payment.method}`;
+      if (payment.verified === true) {
+        const badge = document.createElement("span");
+        badge.className = "verified-badge";
+        badge.textContent = "Verified";
+        line.append(document.createTextNode(" "), badge);
+      } else if (payment.verified === false) {
+        const note = document.createElement("span");
+        note.className = "meta";
+        note.textContent = " Not verified";
+        line.append(note);
+      }
+      const view = viewReceiptButton({ id: payment.id, receiptId: payment.receiptId });
+      if (view) line.append(document.createTextNode(" "), view);
       payments.append(line);
     });
   }
@@ -456,6 +470,15 @@ export function registerOrders() {
       return;
     }
     paymentErrors.delete(payForm.dataset.paymentForm);
+    const payment = result.order.payments[result.order.payments.length - 1];
+    if (payment) {
+      pinReceipt(payForm.dataset.paymentForm, payment.id);
+      try {
+        attachReceipt("payment", payment.id);
+      } catch {
+        paymentErrors.set(payForm.dataset.paymentForm, "The payment was saved, but the photo could not be stored on this device.");
+      }
+    }
     renderOrderList();
   });
 

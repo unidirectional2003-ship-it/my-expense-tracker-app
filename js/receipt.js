@@ -595,7 +595,7 @@ function resolveFields(host) {
   if (!host) return {};
   return {
     amount: named(host, "amount"),
-    date: named(host, "date") || host.querySelector("#grocery-date"),
+    date: named(host, "date") || named(host, "due") || host.querySelector("#grocery-date"),
     shop: named(host, "shop") || host.querySelector("#grocery-shop"),
     item: named(host, "item"),
     note: named(host, "note") || named(host, "notes"),

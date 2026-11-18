@@ -104,21 +104,16 @@ registerScreen("checklist", {
     render();
   },
 });
-try {
-  registerPlaceholders();
-  registerChecklistScreen();
-  registerSpendScreens();
-  registerOrders();
-  registerWork();
-  registerApprovals();
-  registerLinkedScreens();
-  registerBudgets();
-  registerAlerts();
-  initNav();
-} catch (error) {
-  window.__bootError = error && error.stack ? error.stack : String(error);
-  console.error(error);
-}
+registerPlaceholders();
+registerChecklistScreen();
+registerSpendScreens();
+registerOrders();
+registerWork();
+registerApprovals();
+registerLinkedScreens();
+registerBudgets();
+registerAlerts();
+initNav();
 
 app.hidden = true;
 app.inert = true;

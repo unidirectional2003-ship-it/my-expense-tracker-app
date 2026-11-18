@@ -73,6 +73,8 @@ export function goTo(screenName, params = {}, options = {}) {
   else history.pushState({ screenName, params }, "", url);
 }
 
+if (typeof window !== "undefined") window.goTo = goTo;
+
 let started = false;
 
 export function startRouter() {
