@@ -492,12 +492,21 @@ function useValues() {
 }
 
 function writeShop(fields, merchant) {
-  if (fields.shop && fields.shop !== fields.amount) {
-    if (!fields.shop.value.trim() || fields.shop.id === "grocery-shop") fields.shop.value = merchant;
+  const shop = textField(fields.shop);
+  if (shop && shop !== fields.amount) {
+    if (!shop.value.trim() || shop.id === "grocery-shop") shop.value = merchant;
   }
-  if (fields.item && !fields.item.value.trim()) fields.item.value = merchant;
-  if (fields.note && !fields.note.value.trim()) fields.note.value = merchant;
-  if (fields.name && !fields.name.value.trim()) fields.name.value = merchant;
+  const item = textField(fields.item);
+  if (item && !item.value.trim()) item.value = merchant;
+  const note = textField(fields.note);
+  if (note && !note.value.trim()) note.value = merchant;
+  const name = textField(fields.name);
+  if (name && !name.value.trim()) name.value = merchant;
+}
+
+function textField(field) {
+  if (!field || typeof field.value !== "string") return null;
+  return field;
 }
 
 async function saveForLater() {
@@ -609,8 +618,11 @@ function resolveFields(host) {
 }
 
 function named(host, name) {
-  if (host.elements && host.elements[name]) return host.elements[name];
-  return host.querySelector(`[name="${name}"]`);
+  if (host.elements && typeof host.elements.namedItem === "function") {
+    const found = host.elements.namedItem(name);
+    if (found) return found;
+  }
+  return host.querySelector(`[name="${CSS.escape(name)}"]`);
 }
 
 function setSelect(select, value) {
