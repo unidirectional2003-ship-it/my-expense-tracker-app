@@ -317,6 +317,7 @@ function normalizePending(input) {
   copyOptional(input, record, "checklistItemId");
   copyOptional(input, record, "groceryListId");
   copyOptional(input, record, "merchant");
+  copyOptional(input, record, "receiptId");
   copyOptional(input, record, "customer");
   if (knownKeys().has(sourceKey) && !input.id) return null;
   return record;
@@ -636,6 +637,7 @@ function commitApproval(item, options = {}) {
       note: item.note,
     };
     if (item.merchant) expense.merchant = item.merchant;
+    if (item.receiptId) expense.receiptId = item.receiptId;
     if (item.seriesId) expense.seriesId = item.seriesId;
     if (isDuplicateExpense(state.spaces[item.space], expense)) {
       return { ok: false, error: "This matches an expense you already saved." };

@@ -109,8 +109,6 @@ export function bindReceipt() {
   mountScanButtons(document);
   const observer = new MutationObserver(() => mountScanButtons(document));
   observer.observe(document.body, { childList: true, subtree: true });
-  queueMicrotask(installApprovals);
-  renderApprovals();
 }
 
 function onScanClick(event) {
@@ -502,7 +500,7 @@ function writeShop(fields, merchant) {
   if (fields.name && !fields.name.value.trim()) fields.name.value = merchant;
 }
 
-function saveForLater() {
+async function saveForLater() {
   if (!request || request.mode === "payment" || !receiptImage) return;
   clearInvalid();
   const parsed = parseMoney(amountInput.value);
@@ -522,19 +520,28 @@ function saveForLater() {
   const receiptId = crypto.randomUUID();
   try {
     save("receipts", { id: receiptId, dataUrl: receiptImage, entityType: "approval", entityId: id, createdAt: new Date().toISOString() });
-    save("pendingApprovals", {
+    const { queuePendingApproval, renderApprovals, updateApprovalsBadge } = await import("./approvals.js");
+    const saved = queuePendingApproval({
       id,
-      status: "waiting",
+      title: merchant || note,
+      note,
+      source: "Auto: Receipt scan",
+      sourceKey: `receipt:${receiptId}`,
       kind: "expense",
       space: selectedSpace(),
+      category,
       amount: parsed.value,
       date,
       merchant,
-      category,
-      note,
       receiptId,
-      createdAt: new Date().toISOString(),
     });
+    if (!saved) {
+      formError.textContent = "This suggestion is already waiting in Pending Approvals.";
+      formError.hidden = false;
+      return;
+    }
+    renderApprovals();
+    updateApprovalsBadge();
   } catch {
     formError.textContent = "This photo could not be stored on this device. Enter the expense yourself, without the photo.";
     formError.hidden = false;
@@ -542,9 +549,6 @@ function saveForLater() {
   }
   clearArm(request.hostKey);
   closeReceiptModal();
-  renderApprovals();
-  const card = document.getElementById("pending-approvals-card");
-  if (card && card.scrollIntoView) card.scrollIntoView({ behavior: "smooth", block: "center" });
 }
 
 function showStaged(host, hostKey, image, message, proofAmount) {

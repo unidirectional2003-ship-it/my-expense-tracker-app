@@ -4,6 +4,7 @@ import { session } from "./session.js";
 import { state } from "./store.js";
 import { isDuplicateExpense } from "./calc.js";
 import { addExpense } from "./expenses.js";
+import { clearStaged } from "./receipt.js";
 import { syncAutoApprovals, updateApprovalsBadge } from "./approvals.js";
 import { goTo, ensureScreen, registerScreen, currentScreen } from "./router.js";
 import {
