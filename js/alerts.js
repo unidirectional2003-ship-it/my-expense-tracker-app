@@ -64,6 +64,28 @@ function orderProblems(todayValue) {
     }));
 }
 
+function udhaarProblems(todayValue) {
+  return listUdhaar()
+    .filter((entry) => {
+      const due = typeof entry.dueDate === "string" ? entry.dueDate : "";
+      return /^\d{4}-\d{2}-\d{2}$/.test(due) && due < todayValue && remainingOf(entry) > 0;
+    })
+    .map((entry) => {
+      const remaining = remainingOf(entry);
+      const theyOwe = entry.direction !== "payable";
+      return {
+        id: `udhaar:${entry.id}`,
+        title: "Udhaar overdue",
+        message: theyOwe
+          ? `${entry.person} still owes ${formatMoney(remaining)}. Promised by ${formatDate(entry.dueDate)}.`
+          : `You still owe ${entry.person} ${formatMoney(remaining)}. Promised by ${formatDate(entry.dueDate)}.`,
+        severity: "danger",
+        screen: "udhaar",
+        params: { id: entry.id, tab: theyOwe ? "receivable" : "payable" },
+      };
+    });
+}
+
 function workProblems(todayValue) {
   const orders = get("orders");
   return get("workItems")
@@ -106,8 +128,10 @@ export function syncAlerts(todayValue = today()) {
     ...budgetProblems(todayValue),
     ...checklistProblems(todayValue),
     ...orderProblems(todayValue),
+    ...udhaarProblems(todayValue),
     ...workProblems(todayValue),
     ...reconcileProblems(),
+    ...billAlertPlans(loadBillBook().scans, todayValue),
   ];
   const existing = get("alerts");
   const seen = new Set();
@@ -278,6 +302,8 @@ function reveal(alert) {
       node = document.querySelector(`[data-order-id="${CSS.escape(id)}"]`);
     } else if (id && alert.screen === "work") {
       node = document.querySelector(`[data-work-id="${CSS.escape(id)}"]`);
+    } else if (id && alert.screen === "udhaar") {
+      node = document.querySelector(`[data-udhaar-id="${CSS.escape(id)}"]`);
     }
     if (node) node.scrollIntoView({ block: "nearest" });
   });

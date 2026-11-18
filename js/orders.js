@@ -483,12 +483,25 @@ export function registerOrders() {
   });
 
   registerScreen("orders", {
-    show() {
+    show(params = {}) {
       orderDate.value = orderDate.value || today();
       deliveryDate.value = deliveryDate.value || today();
       fillCitySelect(city, true);
       fillCitySelect(cityFilter, false);
+      if (params.id) {
+        search.value = "";
+        statusFilter.value = "";
+        paymentFilter.value = "";
+        cityFilter.value = "";
+        from.value = "";
+        to.value = "";
+      }
       renderOrderList();
+      if (!params.id) return;
+      requestAnimationFrame(() => {
+        const node = document.querySelector(`[data-order-id="${CSS.escape(params.id)}"]`);
+        if (node) node.scrollIntoView({ block: "nearest" });
+      });
     },
   });
 }
