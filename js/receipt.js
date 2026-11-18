@@ -4,7 +4,7 @@ import { SPACES } from "./spaces.js";
 import { session } from "./session.js";
 import { state, receiptPhotos, saveBills } from "./store.js";
 import { deleteRecord, get, save } from "./storage.js";
-import { parseReceipt } from "./receipt-parse.js";
+import { parseGroceryReceipt, parseReceipt } from "./receipt-parse.js";
 import { isReceiptImage } from "./receipt-thumb.js";
 import { armReceipt, attachReceipt, clearArm, pinReceipt, removeReceipt } from "./receipt-hook.js";
 import { registerScreen } from "./router.js";
@@ -111,13 +111,25 @@ export function bindReceipt() {
   observer.observe(document.body, { childList: true, subtree: true });
 }
 
+let groceryHandler = null;
+
+export function onGroceryScan(handler) {
+  groceryHandler = typeof handler === "function" ? handler : null;
+}
+
+function scanMode(button) {
+  if (button.dataset.scan === "payment") return "payment";
+  if (button.dataset.scan === "grocery") return "grocery";
+  return "expense";
+}
+
 function onScanClick(event) {
   const button = event.target.closest("[data-scan]");
   if (!button || receiptModal.contains(button)) return;
   event.preventDefault();
   const host = button.closest("form") || button.closest("[data-spend-panel]") || button.closest("section");
   openScanner({
-    mode: button.dataset.scan === "payment" ? "payment" : "expense",
+    mode: scanMode(button),
     host,
     hostKey: button.dataset.scanHost || host?.dataset.paymentForm || host?.dataset.entryForm || host?.id || "expense",
     category: button.dataset.scanCategory || "",
@@ -132,7 +144,8 @@ function openScanner(options) {
   receiptModal.hidden = false;
   document.body.classList.add("receipt-open");
   const payment = options.mode === "payment";
-  receiptTitle.textContent = payment ? "Scan payment proof" : "Scan receipt";
+  receiptTitle.textContent =
+    options.mode === "grocery" ? "Scan grocery receipt" : payment ? "Scan payment proof" : "Scan receipt";
   if (chooseCopy) {
     chooseCopy.textContent = payment
       ? "Take a photo of an Easypaisa, JazzCash, or bank receipt, or choose one from your gallery."
@@ -303,6 +316,16 @@ function canvasFrom(image, maxWidth, compress) {
   return dataUrl;
 }
 
+export async function recognizeImageText(dataUrl) {
+  const Tesseract = await loadTesseract();
+  if (!scanWorker) {
+    scanWorker = await Tesseract.createWorker("eng", 1, { logger() {} });
+  }
+  const ocrImage = await prepareForOcr(dataUrl).catch(() => dataUrl);
+  const result = await scanWorker.recognize(ocrImage);
+  return result && result.data && result.data.text ? result.data.text : "";
+}
+
 async function scanReceiptImage() {
   if (!receiptImage || scanBusy || !request) return;
   const token = ++scanToken;
@@ -327,14 +350,29 @@ async function scanReceiptImage() {
     progressEl.textContent = "Scanning... 100%";
     const text = result && result.data ? result.data.text : "";
     const confidence = result && result.data ? result.data.confidence : 0;
+    const lines = result && result.data && Array.isArray(result.data.lines) ? result.data.lines : [];
+    if (request && request.mode === "grocery") {
+      deliverGroceryScan(parseGroceryReceipt(text, confidence, lines), confidence, false);
+      return;
+    }
     showConfirm(parseReceipt(text), confidence, false);
   } catch (error) {
     if (token !== scanToken) return;
     const failedLoad = /load|internet|network|script|fetch/i.test(String(error && error.message));
+    if (request && request.mode === "grocery") {
+      deliverGroceryScan(parseGroceryReceipt(""), 0, true);
+      return;
+    }
     showConfirm(parseReceipt(""), 0, failedLoad);
   } finally {
     if (token === scanToken) scanBusy = false;
   }
+}
+
+function deliverGroceryScan(parsed, confidence, failed) {
+  const image = receiptImage;
+  closeReceiptModal();
+  if (groceryHandler) groceryHandler({ parsed, confidence, failed, image });
 }
 
 function loadTesseract() {
@@ -668,8 +706,9 @@ export function mountScanButtons(root) {
     if (form.dataset.paymentForm) ensureButton(form, "payment", form.dataset.paymentForm, "");
   });
   root.querySelectorAll("[data-spend-panel='groceries']").forEach((panel) => {
-    ensureButton(panel, "expense", "groceries", "Groceries");
+    ensureButton(panel, "grocery", "groceries", "Groceries");
   });
+  syncBillScanOnExpense();
 }
 
 function ensureButton(host, mode, hostKey, category) {
@@ -680,10 +719,27 @@ function ensureButton(host, mode, hostKey, category) {
   button.dataset.scan = mode;
   button.dataset.scanHost = hostKey;
   if (category) button.dataset.scanCategory = category;
-  button.textContent = mode === "payment" ? "Scan payment proof" : "Scan receipt";
+  button.textContent =
+    mode === "payment"
+      ? "Scan payment proof"
+      : mode === "grocery"
+        ? "Scan Grocery Receipt"
+        : mode === "bill"
+          ? "Scan Bill"
+          : "Scan receipt";
   const submit = host.querySelector("[type=submit]");
   if (submit) submit.before(button);
   else host.append(button);
+}
+
+function syncBillScanOnExpense() {
+  const form = document.getElementById("expense-form");
+  const category = document.getElementById("category");
+  if (!form || !category) return;
+  const existing = form.querySelector('[data-scan-host="expense-bill"]');
+  if (category.value === "Bills") {
+    if (!existing) ensureButton(form, "bill", "expense-bill", "Bills");
+  } else if (existing) existing.remove();
 }
 
 function cssEscape(value) {
