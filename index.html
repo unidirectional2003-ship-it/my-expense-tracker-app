@@ -8,6 +8,8 @@
     <link rel="apple-touch-icon" href="apple-touch-icon.png" />
     <link rel="manifest" href="manifest.json" />
     <meta name="theme-color" content="#DDEBC8" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="My Expenses" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -18,10 +20,29 @@
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
-    <main class="app" data-space="dashboard">
+    <header class="topbar">
+      <button
+        type="button"
+        class="menu-button"
+        id="menu-button"
+        aria-expanded="false"
+        aria-controls="main-nav"
+      >
+        Menu
+      </button>
+      <nav class="topnav" id="main-nav" aria-label="Main"></nav>
+    </header>
+    <main class="app" data-space="dashboard" hidden>
+      <div id="screen-root">
+      <div class="screen" data-screen="home" id="screen-home">
       <header class="intro">
-        <p class="eyebrow">Expense tracker</p>
-        <h1>Home and business, kept apart</h1>
+        <div class="intro-top">
+          <div>
+            <p class="eyebrow">Expense tracker</p>
+            <h1>Home and business, kept apart</h1>
+          </div>
+          <button type="button" class="settings-button" id="open-settings">Settings</button>
+        </div>
       </header>
 
       <div class="folder">
@@ -326,6 +347,9 @@
 
           <section class="card" data-panel="expenses" aria-labelledby="list-heading">
             <h2 id="list-heading">Expenses</h2>
+            <p class="meta">Open a list from here, or from the menu at the top.</p>
+            <div class="spend-links" id="expense-menu"></div>
+            <div id="spend-root" hidden></div>
             <div class="filters">
               <div class="field">
                 <label for="search">Search</label>
@@ -540,6 +564,95 @@
         </div>
       </div>
 
+      <div class="settings-modal" id="settings-modal" hidden>
+        <button type="button" class="settings-backdrop" id="settings-backdrop" aria-label="Close settings"></button>
+        <div
+          class="settings-dialog"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="settings-title"
+          tabindex="-1"
+        >
+          <h2 id="settings-title">Settings</h2>
+          <p class="lock-note" id="settings-note">
+            This protects the app on this device. Your expenses, sales, bills, and photos are stored on this device.
+            They are not kept in an account or in the cloud.
+          </p>
+
+          <section class="settings-block" aria-labelledby="password-heading">
+            <h3 id="password-heading">Change password</h3>
+            <form id="change-password-form" novalidate>
+              <div class="field">
+                <label for="current-password">Current password</label>
+                <input id="current-password" name="current" type="password" autocomplete="current-password" required />
+              </div>
+              <div class="field">
+                <label for="new-password">New password</label>
+                <input id="new-password" name="next" type="password" autocomplete="new-password" minlength="6" required />
+              </div>
+              <div class="field">
+                <label for="confirm-password">Confirm new password</label>
+                <input id="confirm-password" name="confirm" type="password" autocomplete="new-password" minlength="6" required />
+              </div>
+              <p class="form-error" id="change-password-error" role="alert" hidden></p>
+              <p class="meta" id="change-password-ok" role="status" hidden></p>
+              <button type="submit" class="primary">Save new password</button>
+            </form>
+          </section>
+
+          <section class="settings-block" aria-labelledby="biometric-heading">
+            <h3 id="biometric-heading">Face ID / Fingerprint</h3>
+            <p class="meta" id="biometric-unsupported" hidden>
+              Face ID and fingerprint are not available in this browser on this device. Your password still unlocks the app.
+            </p>
+            <label class="repeat-label" id="biometric-row" for="biometric-toggle" hidden>
+              <input id="biometric-toggle" class="repeat-toggle" type="checkbox" />
+              Use Face ID / Fingerprint to unlock
+            </label>
+            <p class="form-error" id="biometric-error" role="alert" hidden></p>
+          </section>
+
+          <section class="settings-block" aria-labelledby="timeout-heading">
+            <h3 id="timeout-heading">Lock when you leave</h3>
+            <p class="meta">Opening the app always asks for the password. This is how soon it locks after you leave it in the background.</p>
+            <div class="field">
+              <label for="lock-timeout">Background lock</label>
+              <select id="lock-timeout">
+                <option value="1">1 minute</option>
+                <option value="2">2 minutes</option>
+                <option value="5">5 minutes</option>
+                <option value="0">Never</option>
+              </select>
+            </div>
+            <button type="button" class="edit-cancel settings-lock-now" id="lock-now">Lock now</button>
+          </section>
+
+          <section class="settings-block" aria-labelledby="backup-heading">
+            <h3 id="backup-heading">Backup</h3>
+            <p class="meta">
+              A backup is a JSON file of the data on this device. Importing a backup replaces that data.
+              Your password stays as it is. Keep a backup somewhere safe in case you forget the password.
+            </p>
+            <div class="add-actions">
+              <button type="button" class="primary" id="export-backup">Export backup</button>
+              <label class="edit-cancel import-label" for="import-backup">Import backup</label>
+            </div>
+            <input id="import-backup" class="receipt-file" type="file" accept="application/json,.json" />
+            <div id="import-confirm" hidden>
+              <p class="meta" id="import-confirm-text">Replace the data on this device with this backup?</p>
+              <div class="add-actions">
+                <button type="button" class="primary" id="import-replace">Replace data</button>
+                <button type="button" class="edit-cancel" id="import-cancel">Cancel</button>
+              </div>
+            </div>
+            <p class="form-error" id="backup-error" role="alert" hidden></p>
+            <p class="meta" id="backup-ok" role="status" hidden></p>
+          </section>
+
+          <button type="button" class="edit-cancel" id="settings-close">Close</button>
+        </div>
+      </div>
+
       <div class="receipt-modal" id="receipt-modal" hidden>
         <button type="button" class="receipt-backdrop" data-receipt-close aria-label="Close"></button>
         <div
@@ -671,7 +784,124 @@
           </div>
         </div>
       </div>
+      </div>
+      <section class="screen checklist-screen" id="checklist-panel" data-screen="checklist" hidden>
+        <header class="intro">
+          <p class="eyebrow">Every month</p>
+          <h1 id="checklist-heading">Checklist</h1>
+        </header>
+        <div class="sheet" id="checklist-list-view">
+          <div class="field">
+            <label for="checklist-month">Month</label>
+            <input id="checklist-month" name="month" type="month" />
+          </div>
+          <div class="progress-block">
+            <p class="summary-label" id="checklist-progress-label">0 of 0 done</p>
+            <div
+              class="progress-track"
+              id="checklist-progress-track"
+              role="progressbar"
+              aria-valuemin="0"
+              aria-valuemax="0"
+              aria-valuenow="0"
+              aria-valuetext="0 of 0 done"
+              aria-labelledby="checklist-progress-label"
+            >
+              <div class="progress-fill" id="checklist-progress-fill"></div>
+            </div>
+          </div>
+          <p class="meta" id="checklist-history-note" hidden>This month is already saved. Switch back to the current month to add, edit, or reorder items.</p>
+          <form id="checklist-pay-form" class="checklist-pay" hidden novalidate>
+            <p class="edit-title" id="checklist-pay-title">Amount paid</p>
+            <div class="field">
+              <label for="checklist-pay-amount">Paid amount</label>
+              <input id="checklist-pay-amount" name="amount" type="number" inputmode="decimal" min="0.01" step="0.01" placeholder="0.00" required />
+            </div>
+            <p class="form-error" id="checklist-pay-error" role="alert" hidden></p>
+            <div class="edit-actions">
+              <button type="submit" class="primary">Save payment</button>
+              <button type="button" class="edit-cancel" id="checklist-pay-cancel">Cancel</button>
+            </div>
+          </form>
+          <ul class="checklist-list" id="checklist-list"></ul>
+          <p class="empty" id="checklist-empty" hidden>No checklist items yet. Add one below.</p>
+          <form id="checklist-manage" novalidate>
+            <h2>Add an item</h2>
+            <div class="field">
+              <label for="checklist-name">Name</label>
+              <input id="checklist-name" name="name" type="text" maxlength="80" required />
+            </div>
+            <div class="field">
+              <label for="checklist-day">Due day</label>
+              <input id="checklist-day" name="day" type="number" min="1" max="31" step="1" value="1" required />
+            </div>
+            <div class="field">
+              <label for="checklist-expected">Expected amount</label>
+              <input id="checklist-expected" name="expected" type="number" inputmode="decimal" min="0" step="0.01" value="0" required />
+            </div>
+            <div class="field">
+              <label for="checklist-category">Category</label>
+              <select id="checklist-category" name="category"></select>
+            </div>
+            <p class="form-error" id="checklist-manage-error" role="alert" hidden></p>
+            <button type="submit" class="primary">Add item</button>
+          </form>
+        </div>
+        <div id="checklist-detail-view" hidden></div>
+        <div id="checklist-groceries-view" hidden></div>
+      </section>
+      </div>
     </main>
+    <nav class="tabbar" id="tabbar" aria-label="Primary"></nav>
+
+    <div class="lock-screen" id="lock-screen" hidden>
+      <div class="lock-card" role="dialog" aria-modal="true" aria-labelledby="lock-title">
+        <p class="eyebrow">Expense tracker</p>
+        <h1 id="lock-title">App locked</h1>
+        <p class="meta" id="lock-help">Enter your password to open the app.</p>
+
+        <form id="setup-form" novalidate hidden>
+          <div class="field">
+            <label for="setup-password">Password</label>
+            <input id="setup-password" name="password" type="password" autocomplete="new-password" minlength="6" required />
+          </div>
+          <div class="field">
+            <label for="setup-confirm">Confirm password</label>
+            <input id="setup-confirm" name="confirm" type="password" autocomplete="new-password" minlength="6" required />
+          </div>
+          <p class="form-error" id="setup-error" role="alert" hidden></p>
+          <button type="submit" class="primary" id="setup-submit">Save password</button>
+        </form>
+
+        <form id="unlock-form" novalidate hidden>
+          <div class="field">
+            <label for="unlock-password">Password</label>
+            <input id="unlock-password" name="password" type="password" autocomplete="current-password" required />
+          </div>
+          <p class="form-error" id="unlock-error" role="alert" hidden></p>
+          <button type="submit" class="primary" id="unlock-submit">Unlock</button>
+          <button type="button" class="edit-cancel" id="unlock-biometric" hidden>Unlock with Face ID / Fingerprint</button>
+          <button type="button" class="text-button" id="forgot-open">Forgot password?</button>
+        </form>
+
+        <form id="forgot-form" novalidate hidden>
+          <p class="meta" id="forgot-copy">
+            Resetting does not show your expenses, sales, or photos. It erases the data saved in this app on this device.
+            That includes expenses, sales, bills, budgets, savings, and receipt photos.
+            Your password cannot be recovered. If you have an exported backup, you can import it after you create a new password.
+            If you do not have a backup, this data is gone.
+          </p>
+          <div class="field">
+            <label for="forgot-phrase">Type ERASE to confirm</label>
+            <input id="forgot-phrase" name="phrase" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" />
+          </div>
+          <p class="form-error" id="forgot-error" role="alert" hidden></p>
+          <button type="submit" class="danger-button" id="forgot-erase">Erase data and reset password</button>
+          <button type="button" class="edit-cancel" id="forgot-back">Back</button>
+        </form>
+      </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.6/dist/chart.umd.min.js"></script>
     <script type="module" src="js/main.js"></script>
   </body>

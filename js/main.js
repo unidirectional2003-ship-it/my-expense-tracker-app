@@ -15,6 +15,18 @@ import { bindHome, prepareHome, renderHomeSummary, renderSavings } from "./home.
 import { bindBills, prepareBills } from "./bills.js";
 import { bindDashboard, prepareDashboard, renderDashboard } from "./dashboard.js";
 import { bindReceipt } from "./receipt.js";
+import { bindSpend, syncSpend, registerSpendScreens } from "./spend.js";
+import { applyMonthlyGroceryDraft } from "./grocery.js";
+import { initStorage } from "./storage.js";
+import { goTo, registerScreen, startRouter } from "./router.js";
+import { initNav } from "./nav.js";
+import { registerPlaceholders } from "./placeholders.js";
+import { registerOrders } from "./orders.js";
+import { registerWork } from "./work.js";
+import { bindChecklist, prepareChecklist, renderChecklist, registerChecklistScreen } from "./checklist.js";
+import { registerApprovals, syncAutoApprovals, updateApprovalsBadge } from "./approvals.js";
+import { registerBudgets } from "./budgets.js";
+import { registerAlerts, refreshAlerts } from "./alerts.js";
 const app = document.querySelector(".app");
 const tabs = [...document.querySelectorAll(".tab")];
 const panel = document.getElementById("space-panel");
@@ -26,11 +38,21 @@ const homeSummaryPanel = document.getElementById("home-summary-panel");
 const savingsSection = document.getElementById("savings-section");
 const searchInput = document.getElementById("search");
 const categoryInput = document.getElementById("category");
+const checklistTab = document.getElementById("tab-checklist");
 
 setRenderer(() => {
+  syncAutoApprovals();
+  updateApprovalsBadge();
   syncPanels();
+  refreshAlerts();
+  if (session.space === "checklist" && document.getElementById("checklist-panel")) {
+    renderChecklist();
+    syncSpend();
+    return;
+  }
   if (session.space === "dashboard") {
     renderDashboard();
+    syncSpend();
     return;
   }
   renderExpenses();
@@ -38,28 +60,100 @@ setRenderer(() => {
   renderProfit();
   renderHomeSummary();
   renderSavings();
+  syncSpend();
 });
 
-loadAll();
-if (applyMonthlyRepeats()) saveSpaces();
-prepareDashboard();
-prepareExpenseForm();
-prepareSalesForm();
-prepareHome();
-prepareBills();
 bindExpenses();
 bindReceipt();
 bindSales();
 bindHome();
 bindBills();
 bindDashboard();
+bindSpend({
+  showSpace(name) {
+    if (name === "home") session.homeView = "expenses";
+    if (name === "business") session.businessView = "expenses";
+    if (session.space !== name) switchSpace(name);
+    else render();
+  },
+});
+if (document.getElementById("checklist-panel")) {
+bindChecklist();
+}
 
 tabs.forEach((tab) => {
   tab.addEventListener("click", () => switchSpace(tab.dataset.space));
 });
 
+if (checklistTab) checklistTab.addEventListener("click", openChecklist);
+
+registerScreen("home", {
+  show() {
+    if (session.space === "checklist") {
+      session.space = "dashboard";
+      app.dataset.space = "dashboard";
+    }
+    render();
+  },
+});
+registerScreen("checklist", {
+  show() {
+    session.space = "checklist";
+    app.dataset.space = "checklist";
+    render();
+  },
+});
+registerPlaceholders();
+registerChecklistScreen();
+registerSpendScreens();
+registerOrders();
+registerWork();
+registerApprovals();
+registerLinkedScreens();
+registerBudgets();
+registerAlerts();
+initNav();
+
+function registerLinkedScreens() {
+  registerScreen("settings", {
+    show() {
+      goTo("home", {}, { replace: true });
+      document.getElementById("open-settings")?.click();
+    },
+  });
+  registerScreen("reports", {
+    show() {
+      openHomePlace("dashboard", "dash-bars-heading");
+    },
+  });
+}
+
+function openHomePlace(spaceName, headingId) {
+  goTo("home", {}, { replace: true });
+  if (session.space !== spaceName) switchSpace(spaceName);
+  else if (spaceName === "home") render();
+  const heading = document.getElementById(headingId);
+  if (heading) heading.scrollIntoView({ block: "start" });
+}
+
+initStorage();
+loadAll();
+if (applyMonthlyRepeats()) saveSpaces();
+applyMonthlyGroceryDraft();
+syncAutoApprovals();
+updateApprovalsBadge();
+prepareDashboard();
+prepareExpenseForm();
+prepareSalesForm();
+prepareHome();
+prepareBills();
+if (document.getElementById("checklist-panel")) prepareChecklist();
+render();
+startRouter();
+
 document.querySelector(".tabs").addEventListener("keydown", (event) => {
   const index = TAB_ORDER.indexOf(session.space);
+  if (index < 0) return;
   if (event.key === "ArrowRight" || event.key === "ArrowDown") {
     event.preventDefault();
     switchSpace(TAB_ORDER[(index + 1) % TAB_ORDER.length]);
@@ -85,13 +179,19 @@ homeViews.addEventListener("click", (event) => {
   render();
 });
 
-render();
+function openChecklist() {
+  goTo("checklist");
+}
 
 function switchSpace(name) {
   if (!TAB_ORDER.includes(name) || name === session.space) return;
+  const homeScreen = document.getElementById("screen-home");
+  if (homeScreen) homeScreen.hidden = false;
   session.space = name;
   session.editingId = null;
   session.editingSaleId = null;
+  session.checklistView = "list";
+  session.checklistItemId = null;
   app.dataset.space = name;
 
   tabs.forEach((tab) => {
@@ -117,9 +217,27 @@ function switchSpace(name) {
 
 function syncPanels() {
   const isDashboard = session.space === "dashboard";
+  const isChecklist = session.space === "checklist";
   dashboardPanel.hidden = !isDashboard;
-  spaceContent.hidden = isDashboard;
-  if (isDashboard) return;
+  spaceContent.hidden = isDashboard || isChecklist;
+  const checklistPanel = document.getElementById("checklist-panel");
+  if (checklistPanel) checklistPanel.hidden = !isChecklist;
+  const homeScreen = document.getElementById("screen-home");
+  if (homeScreen && isChecklist) homeScreen.hidden = true;
+  const checklistActive = isChecklist;
+  if (checklistTab) {
+    checklistTab.classList.toggle("is-active", checklistActive);
+    checklistTab.setAttribute("aria-selected", String(checklistActive));
+  }
+  if (isChecklist) {
+    tabs.forEach((tab) => {
+      tab.classList.remove("is-active");
+      tab.setAttribute("aria-selected", "false");
+      tab.tabIndex = -1;
+    });
+    panel.setAttribute("aria-labelledby", "checklist-heading");
+    return;
+  }
 
   const isBusiness = session.space === "business";
   const showHomeExpenses = !isBusiness && session.homeView === "expenses";

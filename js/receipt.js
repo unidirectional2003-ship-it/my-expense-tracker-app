@@ -1,16 +1,24 @@
-import { parseMoney } from "./money.js";
+import { formatMoney, parseMoney, sameMoney } from "./money.js";
 import { today } from "./dates.js";
 import { SPACES } from "./spaces.js";
 import { session } from "./session.js";
-import { state } from "./store.js";
-import { isDuplicateExpense } from "./calc.js";
-import { render } from "./render.js";
-import { addExpense, fillCategories, fillFilterCategories } from "./expenses.js";
+import { state, receiptPhotos, saveBills } from "./store.js";
+import { deleteRecord, get, save } from "./storage.js";
 import { parseReceipt } from "./receipt-parse.js";
 import { isReceiptImage } from "./receipt-thumb.js";
+import { armReceipt, attachReceipt, clearArm, removeReceipt } from "./receipt-hook.js";
+import { registerScreen } from "./router.js";
 
-const MISSING_TOTAL = "Couldn't read the total, please enter it manually.";
 const TESSERACT_URL = "https://cdn.jsdelivr.net/npm/tesseract.js@5";
+const CATEGORY_FOR_KIND = {
+  groceries: "Groceries",
+  beauty: "Beauty",
+  clothing: "Clothing",
+  household: "Household",
+  bills: "Bills",
+  supplies: "Business Supplies",
+  expense: "Other",
+};
 
 const scanButton = document.getElementById("scan-receipt");
 const receiptModal = document.getElementById("receipt-modal");
@@ -20,6 +28,7 @@ const cameraInput = document.getElementById("receipt-camera-input");
 const galleryInput = document.getElementById("receipt-gallery-input");
 const chooseError = document.getElementById("receipt-choose-error");
 const chooseStatus = document.getElementById("receipt-choose-status");
+const chooseCopy = document.querySelector("#receipt-step-choose .meta");
 const previewImage = document.getElementById("receipt-preview");
 const confirmImage = document.getElementById("receipt-confirm-preview");
 const fullImage = document.getElementById("receipt-full");
@@ -33,37 +42,40 @@ const noteInput = document.getElementById("receipt-note");
 const spaceInput = document.getElementById("receipt-space");
 const amountHint = document.getElementById("receipt-amount-hint");
 const formError = document.getElementById("receipt-form-error");
-const saveWithoutButton = document.getElementById("receipt-save-without");
+const applyButton = receiptForm?.querySelector("[type=submit]");
+const laterButton = document.getElementById("receipt-later");
 
-let afterSave = null;
+let request = null;
 let receiptImage = "";
-let receiptSuggestions = { home: "Other", business: "Other" };
 let scanToken = 0;
 let scanBusy = false;
 let scanWorker = null;
 let tesseractLoad = null;
 let returnFocus = null;
+let unsure = false;
 
-export function bindReceipt(options = {}) {
+export class ReceiptScanner {
+  open(options) {
+    openScanner(options);
+  }
+}
+
+export function bindReceipt() {
   if (!scanButton || !receiptModal || !receiptForm) return;
-  afterSave = options.afterSave || null;
+  scanButton.dataset.scan = scanButton.dataset.scan || "expense";
+  scanButton.dataset.scanHost = scanButton.dataset.scanHost || "expense-form";
 
-  scanButton.addEventListener("click", openReceiptChooser);
+  document.addEventListener("click", onScanClick);
   cameraInput.addEventListener("change", (event) => onFileChange(event, true));
   galleryInput.addEventListener("change", (event) => onFileChange(event, false));
   document.getElementById("receipt-scan").addEventListener("click", scanReceiptImage);
   receiptForm.addEventListener("submit", (event) => {
     event.preventDefault();
-    saveScannedExpense();
+    useValues();
   });
-  saveWithoutButton.addEventListener("click", () => saveScannedExpense({ dropPhoto: true }));
-  spaceInput.addEventListener("change", () => {
-    const spaceName = selectedSpace();
-    fillReceiptCategories(spaceName, receiptSuggestions[spaceName] || "Other");
-  });
-  amountInput.addEventListener("input", () => {
-    if (amountInput.value.trim()) amountHint.hidden = true;
-  });
+  if (laterButton) laterButton.addEventListener("click", saveForLater);
+  spaceInput.addEventListener("change", () => fillReceiptCategories(selectedSpace(), categoryInput.value));
+  amountInput.addEventListener("input", refreshPaymentCopy);
   receiptModal.addEventListener("click", (event) => {
     if (event.target.closest("[data-receipt-close]")) closeReceiptModal();
   });
@@ -79,19 +91,46 @@ export function bindReceipt(options = {}) {
   document.addEventListener("click", (event) => {
     const button = event.target.closest("[data-view-receipt]");
     if (!button) return;
-    const list = state.spaces[button.dataset.receiptSpace] || [];
-    const expense = list.find((item) => item.id === button.dataset.viewReceipt);
-    if (!expense || !isReceiptImage(expense.receipt)) return;
+    const src = imageFromButton(button);
+    if (!src) return;
     event.preventDefault();
-    openReceiptViewer(expense.receipt);
+    openReceiptViewer(src);
+  });
+
+  mountScanButtons(document);
+  const observer = new MutationObserver(() => mountScanButtons(document));
+  observer.observe(document.body, { childList: true, subtree: true });
+  queueMicrotask(installApprovals);
+  renderApprovals();
+}
+
+function onScanClick(event) {
+  const button = event.target.closest("[data-scan]");
+  if (!button || receiptModal.contains(button)) return;
+  event.preventDefault();
+  const host = button.closest("form") || button.closest("[data-spend-panel]") || button.closest("section");
+  openScanner({
+    mode: button.dataset.scan === "payment" ? "payment" : "expense",
+    host,
+    hostKey: button.dataset.scanHost || host?.dataset.paymentForm || host?.dataset.entryForm || host?.id || "expense",
+    category: button.dataset.scanCategory || "",
+    button,
   });
 }
 
-function openReceiptChooser() {
+function openScanner(options) {
+  request = options;
   resetReceiptFlow();
   returnFocus = document.activeElement;
   receiptModal.hidden = false;
   document.body.classList.add("receipt-open");
+  const payment = options.mode === "payment";
+  receiptTitle.textContent = payment ? "Scan payment proof" : "Scan receipt";
+  if (chooseCopy) {
+    chooseCopy.textContent = payment
+      ? "Take a photo of an Easypaisa, JazzCash, or bank receipt, or choose one from your gallery."
+      : "Take a photo of a paper receipt, or choose one from your gallery.";
+  }
   showStep("choose");
   receiptDialog.focus();
 }
@@ -106,23 +145,19 @@ function openReceiptViewer(src) {
   receiptDialog.focus();
 }
 
-function closeReceiptModal(options = {}) {
+function closeReceiptModal() {
   scanToken += 1;
   scanBusy = false;
-  const worker = scanWorker;
-  scanWorker = null;
-  if (worker) worker.terminate().catch(() => {});
   receiptModal.hidden = true;
   document.body.classList.remove("receipt-open");
   resetReceiptFlow();
-  const restore = options.restoreFocus !== false;
-  if (restore && returnFocus && returnFocus.focus) returnFocus.focus();
+  if (returnFocus && returnFocus.focus) returnFocus.focus();
   returnFocus = null;
 }
 
 function resetReceiptFlow() {
   receiptImage = "";
-  receiptSuggestions = { home: "Other", business: "Other" };
+  unsure = false;
   previewImage.removeAttribute("src");
   confirmImage.removeAttribute("src");
   fullImage.removeAttribute("src");
@@ -130,9 +165,8 @@ function resetReceiptFlow() {
   chooseError.hidden = true;
   formError.hidden = true;
   amountHint.hidden = true;
-  saveWithoutButton.hidden = true;
   chooseStatus.hidden = true;
-  clearReceiptInvalid();
+  clearInvalid();
   showStep("choose");
 }
 
@@ -140,7 +174,7 @@ function showStep(step) {
   receiptModal.querySelectorAll("[data-receipt-step]").forEach((section) => {
     section.hidden = section.dataset.receiptStep !== step;
   });
-  receiptTitle.textContent = step === "view" ? "Receipt" : "Scan receipt";
+  if (step === "view") receiptTitle.textContent = "Receipt";
   receiptDialog.scrollTop = 0;
 }
 
@@ -162,7 +196,7 @@ function onFileChange(event, fromCamera) {
 async function readReceiptFile(file) {
   chooseError.hidden = true;
   if (!isImageFile(file)) {
-    showChooseError("Please choose a photo of your receipt. That file is not an image.");
+    showChooseError("Please choose a photo. That file is not an image.");
     return;
   }
   if (file.size > 12 * 1024 * 1024) {
@@ -195,36 +229,31 @@ function isImageFile(file) {
 }
 
 function compressReceipt(file) {
+  return loadImage(file).then((image) => canvasFrom(image, 1000, true));
+}
+
+function prepareForOcr(dataUrl) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => {
+      try {
+        resolve(canvasFrom(image, 1400, false));
+      } catch (error) {
+        reject(error);
+      }
+    };
+    image.onerror = () => reject(new Error("That photo could not be opened."));
+    image.src = dataUrl;
+  });
+}
+
+function loadImage(file) {
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(file);
     const image = new Image();
     image.onload = () => {
       URL.revokeObjectURL(url);
-      const width = image.naturalWidth || image.width;
-      const height = image.naturalHeight || image.height;
-      if (!width || !height) {
-        reject(new Error("That photo could not be opened. Please try another one."));
-        return;
-      }
-      const scale = width > 800 ? 800 / width : 1;
-      const canvas = document.createElement("canvas");
-      canvas.width = Math.max(1, Math.round(width * scale));
-      canvas.height = Math.max(1, Math.round(height * scale));
-      const context = canvas.getContext("2d");
-      if (!context) {
-        reject(new Error("That photo could not be opened. Please try another one."));
-        return;
-      }
-      context.fillStyle = "#ffffff";
-      context.fillRect(0, 0, canvas.width, canvas.height);
-      context.drawImage(image, 0, 0, canvas.width, canvas.height);
-      let quality = 0.72;
-      let dataUrl = canvas.toDataURL("image/jpeg", quality);
-      while (dataUrl.length > 180000 && quality > 0.45) {
-        quality = Math.round((quality - 0.08) * 100) / 100;
-        dataUrl = canvas.toDataURL("image/jpeg", quality);
-      }
-      resolve(dataUrl);
+      resolve(image);
     };
     image.onerror = () => {
       URL.revokeObjectURL(url);
@@ -234,36 +263,69 @@ function compressReceipt(file) {
   });
 }
 
+function canvasFrom(image, maxWidth, compress) {
+  const width = image.naturalWidth || image.width;
+  const height = image.naturalHeight || image.height;
+  if (!width || !height) throw new Error("That photo could not be opened. Please try another one.");
+  const scale = width > maxWidth ? maxWidth / width : 1;
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(width * scale));
+  canvas.height = Math.max(1, Math.round(height * scale));
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("That photo could not be opened. Please try another one.");
+  context.fillStyle = "#ffffff";
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  context.drawImage(image, 0, 0, canvas.width, canvas.height);
+  if (!compress) {
+    const pixels = context.getImageData(0, 0, canvas.width, canvas.height);
+    const data = pixels.data;
+    for (let i = 0; i < data.length; i += 4) {
+      let tone = data[i] * 0.3 + data[i + 1] * 0.59 + data[i + 2] * 0.11;
+      tone = Math.max(0, Math.min(255, (tone - 128) * 1.4 + 128));
+      data[i] = data[i + 1] = data[i + 2] = tone;
+    }
+    context.putImageData(pixels, 0, 0);
+    return canvas.toDataURL("image/png");
+  }
+  let quality = 0.72;
+  let dataUrl = canvas.toDataURL("image/jpeg", quality);
+  while (dataUrl.length > 180000 && quality > 0.45) {
+    quality = Math.round((quality - 0.08) * 100) / 100;
+    dataUrl = canvas.toDataURL("image/jpeg", quality);
+  }
+  return dataUrl;
+}
+
 async function scanReceiptImage() {
-  if (!receiptImage || scanBusy) return;
+  if (!receiptImage || scanBusy || !request) return;
   const token = ++scanToken;
   scanBusy = true;
   showStep("scanning");
   progressEl.textContent = "Scanning... 0%";
-  let worker = null;
   try {
     const Tesseract = await loadTesseract();
     if (token !== scanToken) return;
-    worker = await Tesseract.createWorker("eng", 1, {
-      logger: (message) => {
-        if (token !== scanToken) return;
-        updateScanProgress(message);
-      },
-    });
-    scanWorker = worker;
+    if (!scanWorker) {
+      scanWorker = await Tesseract.createWorker("eng", 1, {
+        logger: (message) => {
+          if (token !== scanToken) return;
+          updateScanProgress(message);
+        },
+      });
+    }
     if (token !== scanToken) return;
-    const result = await worker.recognize(receiptImage);
+    const ocrImage = await prepareForOcr(receiptImage).catch(() => receiptImage);
+    const result = await scanWorker.recognize(ocrImage);
     if (token !== scanToken) return;
     progressEl.textContent = "Scanning... 100%";
     const text = result && result.data ? result.data.text : "";
-    showReceiptConfirm(parseReceipt(text), false);
+    const confidence = result && result.data ? result.data.confidence : 0;
+    showConfirm(parseReceipt(text), confidence, false);
   } catch (error) {
     if (token !== scanToken) return;
-    const failedLoad = error && /load|internet|network|script|fetch/i.test(String(error && error.message));
-    showReceiptConfirm(parseReceipt(""), true, failedLoad);
+    const failedLoad = /load|internet|network|script|fetch/i.test(String(error && error.message));
+    showConfirm(parseReceipt(""), 0, failedLoad);
   } finally {
-    if (worker) worker.terminate().catch(() => {});
-    if (scanWorker === worker) scanWorker = null;
     if (token === scanToken) scanBusy = false;
   }
 }
@@ -295,37 +357,252 @@ function updateScanProgress(message) {
   let percent = 8;
   if (message.status === "recognizing text") percent = 35 + fraction * 65;
   else if (message.status.indexOf("language") !== -1) percent = 15 + fraction * 20;
-  else if (message.status.indexOf("initial") !== -1) percent = 12;
   else percent = 8 + fraction * 10;
   percent = Math.max(1, Math.min(99, Math.round(percent)));
   progressEl.textContent = `Scanning... ${percent}%`;
 }
 
-function showReceiptConfirm(parsed, failed, failedLoad) {
-  const spaceName = session.space === "business" ? "business" : "home";
-  receiptSuggestions = parsed.suggestions || { home: "Other", business: "Other" };
+function showConfirm(parsed, confidence, failedLoad) {
+  const payment = request && request.mode === "payment";
+  unsure = failedLoad || !parsed.amount || (typeof confidence === "number" && confidence < 45);
   amountInput.value = parsed.amount ? parsed.amount.toFixed(2) : "";
-  dateInput.value = parsed.date || today();
+  dateInput.value = parsed.date || (payment ? "" : today());
   merchantInput.value = parsed.merchant || "";
   noteInput.value = parsed.merchant || "";
+  const spaceName = session.space === "business" || request?.hostKey === "supplies" ? "business" : "home";
   spaceInput.value = spaceName;
-  fillReceiptCategories(spaceName, receiptSuggestions[spaceName] || "Other");
+  const suggested = request?.category || (parsed.suggestions && parsed.suggestions[spaceName]) || "Other";
+  fillReceiptCategories(spaceName, suggested);
+  toggleExtraFields(payment);
   confirmImage.src = receiptImage;
-  amountHint.hidden = Boolean(parsed.amount);
-  if (!parsed.amount) amountHint.textContent = MISSING_TOTAL;
   if (failedLoad) {
-    formError.textContent = "The scanner could not load. Check your internet connection, or enter the details yourself.";
+    formError.textContent = "The scanner could not load. Check your internet connection, then enter the details yourself.";
     formError.hidden = false;
-  } else if (failed) {
-    formError.textContent = "The receipt could not be read. Please enter the details yourself.";
+  } else if (!parsed.amount && !parsed.date && !parsed.merchant) {
+    formError.textContent = "I couldn't read this photo. Please enter the details yourself.";
+    formError.hidden = false;
+  } else if (unsure) {
+    formError.textContent = payment
+      ? "I couldn't read this proof clearly. Check the amount and date, then compare it with what you entered."
+      : "I couldn't read this clearly. Please check the amount, date, and shop before you save.";
     formError.hidden = false;
   } else {
-    formError.hidden = true;
+    formError.textContent = "Check these values. Nothing is saved until you confirm on the form.";
+    formError.hidden = false;
   }
-  saveWithoutButton.hidden = true;
-  clearReceiptInvalid();
+  amountHint.hidden = Boolean(parsed.amount);
+  if (!parsed.amount) amountHint.textContent = "I couldn't read the total. Enter it yourself.";
+  refreshPaymentCopy();
+  clearInvalid();
   showStep("confirm");
   if (!parsed.amount) amountInput.focus();
+}
+
+function toggleExtraFields(payment) {
+  [categoryInput, noteInput, spaceInput, merchantInput].forEach((field) => {
+    const wrap = field.closest(".field");
+    if (wrap) wrap.hidden = payment && field !== merchantInput;
+  });
+  merchantInput.closest(".field").hidden = false;
+  if (applyButton) applyButton.textContent = payment ? "Use this proof" : "Use these values";
+  if (laterButton) laterButton.hidden = payment;
+}
+
+function refreshPaymentCopy() {
+  if (!request || request.mode !== "payment") {
+    amountHint.hidden = amountHint.hidden && Boolean(amountInput.value.trim());
+    return;
+  }
+  const proof = parseMoney(amountInput.value);
+  const message = paymentMessage(proof.ok ? proof.value : null, enteredRaw(request.host));
+  amountHint.textContent = message;
+  amountHint.hidden = false;
+  amountHint.classList.toggle("is-match", message === "Matches");
+  amountHint.classList.toggle("is-differ", message.startsWith("Amount differs"));
+}
+
+export function paymentMessage(proofAmount, entered) {
+  if (proofAmount == null) {
+    return "I couldn't read the amount on this proof. Enter it yourself. This payment stays unverified.";
+  }
+  const parsed = parseMoney(entered, { allowZero: true });
+  if (!parsed.ok) {
+    return `I read ${formatMoney(proofAmount)} on the proof. Enter the payment amount so I can compare it.`;
+  }
+  if (sameMoney(proofAmount, parsed.value)) return "Matches";
+  return `Amount differs: proof says ${formatMoney(proofAmount)}, entered ${formatMoney(parsed.value)}`;
+}
+
+function enteredRaw(host) {
+  if (!host) return "";
+  const cash = named(host, "cash");
+  if (cash && cash.value.trim()) return cash.value.trim();
+  const amount = named(host, "amount");
+  return amount ? amount.value.trim() : "";
+}
+
+function useValues() {
+  if (!request || !receiptImage) return;
+  clearInvalid();
+  const proof = parseMoney(amountInput.value);
+  const merchant = merchantInput.value.trim().slice(0, 80);
+  const date = dateInput.value;
+  const payment = request.mode === "payment";
+  if (payment && amountInput.value.trim() && !proof.ok) {
+    amountInput.classList.add("invalid");
+    formError.textContent = "Use an amount greater than 0 with at most 2 decimal places, or clear it and type the amount on the form.";
+    formError.hidden = false;
+    amountInput.focus();
+    return;
+  }
+  const fields = resolveFields(request.host);
+  if (!payment && proof.ok && fields.amount && fields.amount.type !== "date") fields.amount.value = proof.value.toFixed(2);
+  if (date && fields.date && !payment) fields.date.value = date;
+  if (!payment && merchant) writeShop(fields, merchant);
+  if (!payment && fields.category && categoryInput.value) setSelect(fields.category, categoryInput.value);
+  if (payment && proof.ok && !enteredRaw(request.host) && fields.amount) fields.amount.value = proof.value.toFixed(2);
+  if (payment && date && fields.date && !fields.date.value) fields.date.value = date;
+
+  armReceipt(request.hostKey, payment ? "payment" : "expense", {
+    image: receiptImage,
+    merchant,
+    proofAmount: proof.ok ? proof.value : null,
+    proofDate: date,
+    category: categoryInput.value || request.category || "Other",
+    space: selectedSpace(),
+    note: noteInput.value.trim(),
+    enteredNow: () => enteredRaw(request.host),
+  });
+  const message = payment
+    ? paymentMessage(proof.ok ? proof.value : null, enteredRaw(request.host))
+    : "Receipt photo attached. Check the fields, then save. Nothing is stored until you do.";
+  showStaged(request.host, receiptImage, message, payment);
+  closeReceiptModal();
+}
+
+function writeShop(fields, merchant) {
+  if (fields.shop && fields.shop !== fields.amount) {
+    if (!fields.shop.value.trim() || fields.shop.id === "grocery-shop") fields.shop.value = merchant;
+  }
+  if (fields.item && !fields.item.value.trim()) fields.item.value = merchant;
+  if (fields.note && !fields.note.value.trim()) fields.note.value = merchant;
+  if (fields.name && !fields.name.value.trim()) fields.name.value = merchant;
+}
+
+function saveForLater() {
+  if (!request || request.mode === "payment" || !receiptImage) return;
+  clearInvalid();
+  const parsed = parseMoney(amountInput.value);
+  const date = dateInput.value;
+  const merchant = merchantInput.value.trim().slice(0, 80);
+  const note = (noteInput.value.trim() || merchant).slice(0, 120);
+  const category = categoryInput.value || request.category || "Other";
+  if (!parsed.ok || !date || !note) {
+    formError.textContent = "Enter the amount, date, and a note before saving this for later. Nothing has been saved.";
+    formError.hidden = false;
+    if (!parsed.ok) amountInput.classList.add("invalid");
+    if (!date) dateInput.classList.add("invalid");
+    if (!note) noteInput.classList.add("invalid");
+    return;
+  }
+  const id = crypto.randomUUID();
+  const receiptId = crypto.randomUUID();
+  try {
+    save("receipts", { id: receiptId, dataUrl: receiptImage, entityType: "approval", entityId: id, createdAt: new Date().toISOString() });
+    save("pendingApprovals", {
+      id,
+      status: "waiting",
+      kind: "expense",
+      space: selectedSpace(),
+      amount: parsed.value,
+      date,
+      merchant,
+      category,
+      note,
+      receiptId,
+      createdAt: new Date().toISOString(),
+    });
+  } catch {
+    formError.textContent = "This photo could not be stored on this device. Enter the expense yourself, without the photo.";
+    formError.hidden = false;
+    return;
+  }
+  clearArm(request.hostKey);
+  closeReceiptModal();
+  renderApprovals();
+  const card = document.getElementById("pending-approvals-card");
+  if (card && card.scrollIntoView) card.scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
+function showStaged(host, image, message, payment) {
+  if (!host) return;
+  let note = host.querySelector(".scan-staged");
+  if (!note) {
+    note = document.createElement("div");
+    note.className = "scan-staged";
+    host.append(note);
+  }
+  note.replaceChildren();
+  const img = document.createElement("img");
+  img.className = "receipt-preview";
+  img.alt = "Photo attached, not saved yet";
+  img.src = image;
+  const copy = document.createElement("p");
+  copy.className = "meta scan-result";
+  copy.textContent = message;
+  if (message === "Matches") copy.classList.add("is-match");
+  if (message.startsWith("Amount differs")) copy.classList.add("is-differ");
+  const remove = document.createElement("button");
+  remove.type = "button";
+  remove.className = "edit-cancel";
+  remove.textContent = "Remove photo";
+  remove.addEventListener("click", () => {
+    clearArm(request?.hostKey || host.dataset.scanHost || host.id);
+    note.remove();
+  });
+  note.append(img, copy, remove);
+  if (payment) {
+    const amount = named(host, "amount");
+    const cash = named(host, "cash");
+    const refresh = () => {
+      const proof = parseMoney(amountInput.value);
+      const live = paymentMessage(proof.ok ? proof.value : peekProof(host), enteredRaw(host));
+      copy.textContent = live;
+      copy.classList.toggle("is-match", live === "Matches");
+      copy.classList.toggle("is-differ", live.startsWith("Amount differs"));
+    };
+    if (amount) amount.addEventListener("input", refresh);
+    if (cash) cash.addEventListener("input", refresh);
+  }
+}
+
+function peekProof(host) {
+  const key = host?.dataset?.paymentForm || host?.dataset?.entryForm || host?.id;
+  return null;
+  void key;
+}
+
+function resolveFields(host) {
+  if (!host) return {};
+  return {
+    amount: named(host, "amount"),
+    date: named(host, "date") || host.querySelector("#grocery-date"),
+    shop: named(host, "shop") || host.querySelector("#grocery-shop"),
+    item: named(host, "item"),
+    note: named(host, "note") || named(host, "notes"),
+    name: named(host, "name"),
+    category: named(host, "category"),
+  };
+}
+
+function named(host, name) {
+  if (host.elements && host.elements[name]) return host.elements[name];
+  return host.querySelector(`[name="${name}"]`);
+}
+
+function setSelect(select, value) {
+  const option = [...select.options].find((item) => item.value === value);
+  if (option) select.value = value;
 }
 
 function fillReceiptCategories(spaceName, selected) {
@@ -347,114 +624,246 @@ function selectedSpace() {
   return spaceInput.value === "business" ? "business" : "home";
 }
 
-function saveScannedExpense(options = {}) {
-  clearReceiptInvalid();
-  formError.hidden = true;
-  const spaceName = selectedSpace();
-  const parsed = parseMoney(amountInput.value);
-  const category = categoryInput.value.trim();
-  const date = dateInput.value;
-  const merchant = merchantInput.value.trim().slice(0, 80);
-  let note = noteInput.value.trim();
-  if (!note) note = merchant;
-  note = note.slice(0, 120);
-  const allowed = SPACES[spaceName] ? SPACES[spaceName].categories : [];
-  const invalid = [];
+function clearInvalid() {
+  [amountInput, dateInput, merchantInput, categoryInput, noteInput, spaceInput].forEach((field) => {
+    field.classList.remove("invalid");
+  });
+}
 
-  if (!amountInput.value.trim()) {
-    amountInput.classList.add("invalid");
-    amountHint.textContent = MISSING_TOTAL;
-    amountHint.hidden = false;
-    invalid.push(amountInput);
-  } else if (!parsed.ok) {
-    amountInput.classList.add("invalid");
-    invalid.push(amountInput);
+export function mountScanButtons(root) {
+  root.querySelectorAll("form").forEach((form) => {
+    if (form.id === "receipt-form" || form.classList.contains("edit-form")) return;
+    if (form.id === "expense-form") ensureButton(form, "expense", "expense-form", "");
+    if (form.id === "sale-form") ensureButton(form, "payment", "sale-form", "");
+    if (form.id === "bill-form") ensureButton(form, "expense", "bill-form", "Bills");
+    if (form.dataset.entryForm) {
+      const kind = form.dataset.entryForm;
+      ensureButton(form, "expense", kind, CATEGORY_FOR_KIND[kind] || "");
+    }
+    if (form.dataset.paymentForm) ensureButton(form, "payment", form.dataset.paymentForm, "");
+  });
+  root.querySelectorAll("[data-spend-panel='groceries']").forEach((panel) => {
+    ensureButton(panel, "expense", "groceries", "Groceries");
+  });
+}
+
+function ensureButton(host, mode, hostKey, category) {
+  if (host.querySelector(`[data-scan-host="${cssEscape(hostKey)}"]`)) return;
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "primary scan-receipt";
+  button.dataset.scan = mode;
+  button.dataset.scanHost = hostKey;
+  if (category) button.dataset.scanCategory = category;
+  button.textContent = mode === "payment" ? "Scan payment proof" : "Scan receipt";
+  const submit = host.querySelector("[type=submit]");
+  if (submit) submit.before(button);
+  else host.append(button);
+}
+
+function cssEscape(value) {
+  return window.CSS && CSS.escape ? CSS.escape(value) : value.replace(/"/g, "");
+}
+
+export function imageById(id) {
+  if (!id) return "";
+  const legacy = receiptPhotos()[id];
+  if (isReceiptImage(legacy)) return legacy;
+  const row = get("receipts").find((item) => item.id === id);
+  return row && isReceiptImage(row.dataUrl) ? row.dataUrl : "";
+}
+
+function imageFromButton(button) {
+  if (button.dataset.receipt) {
+    const stored = imageById(button.dataset.receipt);
+    if (stored) return stored;
   }
-  if (!date) invalid.push(dateInput);
-  if (!category || !allowed.includes(category)) invalid.push(categoryInput);
-  if (!note) invalid.push(noteInput);
+  const record = findRecord(button.dataset.viewReceipt);
+  if (!record) return "";
+  return imageById(record.receiptId || record.paymentProofId) || (isReceiptImage(record.receipt) ? record.receipt : "");
+}
 
-  if (invalid.length) {
-    invalid.forEach((field) => field.classList.add("invalid"));
-    if (!amountInput.value.trim()) formError.textContent = MISSING_TOTAL;
-    else if (!parsed.ok) formError.textContent = "Use an amount greater than 0 with at most 2 decimal places.";
-    else if (!date) formError.textContent = "Pick a date.";
-    else if (!note) formError.textContent = "Add a note for this expense.";
-    else formError.textContent = "Choose a category.";
-    formError.hidden = false;
-    invalid[0].focus();
+function findRecord(id) {
+  if (!id) return null;
+  for (const list of Object.values(state.spaces)) {
+    const expense = list.find((item) => item.id === id);
+    if (expense) return expense;
+  }
+  return state.sales.find((item) => item.id === id) || state.bills.find((item) => item.id === id) || null;
+}
+
+export function viewReceiptButton(record, field = "receiptId") {
+  const id = record[field];
+  if (!id && !isReceiptImage(record.receipt)) return null;
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "edit";
+  button.dataset.viewReceipt = record.id;
+  if (id) button.dataset.receipt = id;
+  button.textContent = "View receipt";
+  return button;
+}
+
+function installApprovals() {
+  try {
+    registerScreen("approvals", { show: showApprovals });
+  } catch {
+    // The router is optional. The dashboard card still lists anything waiting.
+  }
+  renderApprovals();
+}
+
+function showApprovals() {
+  const screen = document.querySelector('[data-screen="approvals"]');
+  if (!screen) return;
+  let panel = screen.querySelector("#approvals-screen");
+  if (!panel) {
+    screen.replaceChildren();
+    const app = document.createElement("main");
+    app.className = "app";
+    app.id = "approvals-screen";
+    const intro = document.createElement("header");
+    intro.className = "intro";
+    const heading = document.createElement("h1");
+    heading.textContent = "Pending Approvals";
+    intro.append(heading);
+    const sheet = document.createElement("div");
+    sheet.className = "sheet";
+    sheet.id = "approvals-sheet";
+    app.append(intro, sheet);
+    screen.append(app);
+    panel = app;
+  }
+  paintApprovalList(screen.querySelector("#approvals-sheet"));
+}
+
+export function renderApprovals() {
+  const waiting = pendingItems();
+  let card = document.getElementById("pending-approvals-card");
+  const dashboard = document.getElementById("dashboard-panel");
+  if (!waiting.length) {
+    if (card) card.hidden = true;
+  } else if (dashboard) {
+    if (!card) {
+      card = document.createElement("section");
+      card.className = "card";
+      card.id = "pending-approvals-card";
+      const title = document.createElement("h2");
+      title.textContent = "Pending Approvals";
+      const list = document.createElement("ul");
+      list.className = "expense-list";
+      list.id = "pending-approvals-list";
+      card.append(title, list);
+      dashboard.prepend(card);
+    }
+    card.hidden = false;
+    paintApprovalList(card);
+  }
+  const sheet = document.getElementById("approvals-sheet");
+  if (sheet) paintApprovalList(sheet);
+}
+
+function pendingItems() {
+  return get("pendingApprovals").filter((item) => String(item.status || "waiting").toLowerCase() === "waiting");
+}
+
+function paintApprovalList(host) {
+  if (!host) return;
+  let list = host.querySelector(".expense-list");
+  if (!list) {
+    list = document.createElement("ul");
+    list.className = "expense-list";
+    host.append(list);
+  }
+  const items = pendingItems();
+  if (!items.length) {
+    list.replaceChildren();
+    let empty = host.querySelector(".empty");
+    if (!empty) {
+      empty = document.createElement("p");
+      empty.className = "empty";
+      host.append(empty);
+    }
+    empty.hidden = false;
+    empty.textContent = "Nothing is waiting for approval.";
     return;
   }
+  const empty = host.querySelector(".empty");
+  if (empty) empty.hidden = true;
+  list.replaceChildren(
+    ...items.map((item) => {
+      const row = document.createElement("li");
+      row.className = "expense";
+      const main = document.createElement("div");
+      main.className = "expense-main";
+      const top = document.createElement("div");
+      top.className = "expense-top";
+      const title = document.createElement("span");
+      title.className = "category";
+      title.textContent = item.merchant || item.category || "Receipt";
+      const amount = document.createElement("span");
+      amount.className = "amount";
+      amount.textContent = formatMoney(item.amount);
+      const meta = document.createElement("p");
+      meta.className = "meta";
+      meta.textContent = `${item.date} · ${item.category || "Expense"} · ${item.note || ""}`;
+      top.append(title, amount);
+      main.append(top, meta);
+      const actions = document.createElement("div");
+      actions.className = "expense-actions";
+      const approve = document.createElement("button");
+      approve.type = "button";
+      approve.className = "primary";
+      approve.textContent = "Approve";
+      approve.addEventListener("click", () => approveItem(item));
+      const dismiss = document.createElement("button");
+      dismiss.type = "button";
+      dismiss.className = "delete";
+      dismiss.textContent = "Dismiss";
+      dismiss.addEventListener("click", () => dismissItem(item));
+      actions.append(approve, dismiss);
+      const view = viewReceiptButton({ id: item.id, receiptId: item.receiptId });
+      if (view) actions.append(view);
+      row.append(main, actions);
+      return row;
+    })
+  );
+}
 
+async function approveItem(item) {
   const expense = {
     id: crypto.randomUUID(),
-    amount: parsed.value,
-    category,
-    date,
-    note,
+    amount: item.amount,
+    category: item.category || "Other",
+    date: item.date,
+    note: item.note || item.merchant || "Receipt",
+    receiptId: item.receiptId,
   };
-  if (merchant) expense.merchant = merchant;
-  if (!options.dropPhoto && isReceiptImage(receiptImage)) expense.receipt = receiptImage;
-
-  if (isDuplicateExpense(state.spaces[spaceName], expense)) {
-    formError.textContent = "This matches an expense you already saved.";
-    formError.hidden = false;
-    amountInput.focus();
-    return;
-  }
-
-  try {
-    addExpense(spaceName, expense);
-  } catch (error) {
-    const index = state.spaces[spaceName].indexOf(expense);
-    if (index !== -1) state.spaces[spaceName].splice(index, 1);
-    if (expense.receipt && isQuotaError(error)) {
-      saveWithoutButton.hidden = false;
-      formError.textContent = "This photo could not be stored on this device. You can save the expense without the photo.";
-      formError.hidden = false;
-      return;
-    }
-    formError.textContent = "The expense could not be saved. Please try again.";
-    formError.hidden = false;
-    return;
-  }
-
-  closeReceiptModal({ restoreFocus: false });
-  revealSpace(spaceName);
-  const first = document.querySelector("#expense-list .expense");
-  if (first && first.scrollIntoView) first.scrollIntoView({ behavior: "smooth", block: "center" });
+  if (item.merchant) expense.merchant = item.merchant;
+  const spaceName = item.space === "business" ? "business" : "home";
+  const { addExpense } = await import("./expenses.js");
+  addExpense(spaceName, expense);
+  deleteRecord("pendingApprovals", item.id);
+  renderApprovals();
 }
 
-function revealSpace(spaceName) {
-  session.space = spaceName;
-  if (spaceName === "home") session.homeView = "expenses";
-  if (spaceName === "business") session.businessView = "expenses";
-  session.editingId = null;
-  session.editingSaleId = null;
-  const app = document.querySelector(".app");
-  if (app) app.dataset.space = spaceName;
-  const panel = document.getElementById("space-panel");
-  document.querySelectorAll(".tab").forEach((tab) => {
-    const active = tab.dataset.space === spaceName;
-    tab.classList.toggle("is-active", active);
-    tab.setAttribute("aria-selected", String(active));
-    tab.tabIndex = active ? 0 : -1;
-    if (active && panel) panel.setAttribute("aria-labelledby", tab.id);
-  });
-  const search = document.getElementById("search");
-  if (search) search.value = "";
-  fillCategories();
-  fillFilterCategories();
-  render();
+function dismissItem(item) {
+  removeReceipt(item.receiptId);
+  deleteRecord("pendingApprovals", item.id);
+  renderApprovals();
 }
 
-function clearReceiptInvalid() {
-  [amountInput, dateInput, merchantInput, categoryInput, noteInput, spaceInput].forEach((field) => {
-    if (field) field.classList.remove("invalid");
-  });
+export function attachBillReceipt(bill) {
+  pinAndAttach("bill-form", "bill", bill.id);
+  saveBills();
 }
 
-function isQuotaError(error) {
-  if (!error) return false;
-  return error.name === "QuotaExceededError" || error.name === "NS_ERROR_DOM_QUOTA_REACHED" || error.code === 22;
+function pinAndAttach(hostKey, entityType, entityId) {
+  const { pinReceipt } = receiptHook();
+  pinReceipt(hostKey, entityId);
+  attachReceipt(entityType, entityId);
+}
+
+function receiptHook() {
+  return { pinReceipt: (hostKey, entityId) => import("./receipt-hook.js").then((mod) => mod.pinReceipt(hostKey, entityId)) };
 }

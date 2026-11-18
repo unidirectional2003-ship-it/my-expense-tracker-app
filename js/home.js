@@ -1,7 +1,7 @@
 import { parseMoney, formatMoney, roundMoney } from "./money.js";
 import { today, daysRemainingInMonth, monthName } from "./dates.js";
 import { state, saveBudgets, saveSavings } from "./store.js";
-import { sumInMonth, personalBalance } from "./calc.js";
+import { sumInMonth, personalBalance, savingsApplied } from "./calc.js";
 import { render } from "./render.js";
 
 const summaryMonthInput = document.getElementById("summary-month");
@@ -83,14 +83,19 @@ export function bindHome() {
   addToSavingsButton.addEventListener("click", () => {
     const month = today().slice(0, 7);
     const gross = grossLeft(month);
-    if (state.savings.appliedMonth !== month) {
-      state.savings.appliedMonth = month;
-      state.savings.appliedAmount = 0;
+    if (!state.savings.appliedByMonth || typeof state.savings.appliedByMonth !== "object") {
+      state.savings.appliedByMonth = {};
     }
-    const add = roundMoney(Math.max(0, gross - state.savings.appliedAmount));
+    if (state.savings.appliedMonth && state.savings.appliedByMonth[state.savings.appliedMonth] == null) {
+      state.savings.appliedByMonth[state.savings.appliedMonth] = state.savings.appliedAmount || 0;
+    }
+    const already = savingsApplied(state.savings, month);
+    const add = roundMoney(Math.max(0, gross - already));
     if (add <= 0) return;
     state.savings.saved = roundMoney(state.savings.saved + add);
-    state.savings.appliedAmount = roundMoney(state.savings.appliedAmount + add);
+    state.savings.appliedByMonth[month] = roundMoney(already + add);
+    state.savings.appliedMonth = month;
+    state.savings.appliedAmount = state.savings.appliedByMonth[month];
     saveSavings();
     render();
   });
@@ -168,7 +173,8 @@ export function renderHomeSummary() {
 
   const totals = new Map();
   monthExpenses.forEach((expense) => {
-    totals.set(expense.category, (totals.get(expense.category) || 0) + expense.amount);
+    const name = expense.subcategory ? `${expense.category} · ${expense.subcategory}` : expense.category;
+    totals.set(name, (totals.get(name) || 0) + expense.amount);
   });
   const rows = [...totals.entries()]
     .map(([name, amount]) => ({ name, amount: roundMoney(amount) }))
@@ -231,8 +237,7 @@ function grossLeft(month) {
 }
 
 function availableToSave(month) {
-  const already = state.savings.appliedMonth === month ? state.savings.appliedAmount : 0;
-  return roundMoney(Math.max(0, grossLeft(month) - already));
+  return roundMoney(Math.max(0, grossLeft(month) - savingsApplied(state.savings, month)));
 }
 
 function clearSavingsInvalid() {

@@ -1,12 +1,16 @@
 import { roundMoney } from "./money.js";
 import { today } from "./dates.js";
+import { normalizeChecklist, emptyChecklist } from "./checklist-model.js";
 
 export const STORAGE_KEY = "expense-spaces";
 export const SALES_KEY = "business-sales";
 export const SAVINGS_KEY = "home-savings-goal";
 export const HOME_BUDGET_KEY = "homeMonthlyBudget";
 export const BUDGET_KEY = "home-budgets";
+export const CATEGORY_BUDGET_KEY = "category-budgets";
+export const ALERTS_KEY = "alerts";
 export const BILLS_KEY = "bills";
+export const CHECKLIST_KEY = "checklist";
 
 export const state = {
   spaces: { home: [], business: [] },
@@ -14,10 +18,11 @@ export const state = {
   budgets: {},
   savings: emptySavings(),
   bills: [],
+  checklist: emptyChecklist(),
 };
 
 export function emptySavings() {
-  return { name: "", target: 0, saved: 0, appliedMonth: "", appliedAmount: 0 };
+  return { name: "", target: 0, saved: 0, appliedMonth: "", appliedAmount: 0, appliedByMonth: {} };
 }
 
 function readJson(key) {
@@ -32,19 +37,30 @@ function readJson(key) {
 
 function sameExpense(stored, next) {
   if (!stored || !next) return false;
-  return (
-    stored.id === next.id &&
-    stored.amount === next.amount &&
-    stored.category === next.category &&
-    stored.date === next.date &&
-    stored.note === next.note &&
-    stored.repeatsMonthly === next.repeatsMonthly &&
-    stored.seriesId === next.seriesId &&
-    stored.lastAppliedMonth === next.lastAppliedMonth &&
-    stored.receiptId === next.receiptId &&
-    stored.merchant === next.merchant &&
-    stored.receipt === next.receipt
-  );
+  return expenseSignature(stored) === expenseSignature(next);
+}
+
+function expenseSignature(expense) {
+  return JSON.stringify({
+    id: expense.id,
+    amount: expense.amount,
+    category: expense.category,
+    date: expense.date,
+    note: expense.note,
+    repeatsMonthly: expense.repeatsMonthly === true ? true : undefined,
+    seriesId: expense.seriesId || undefined,
+    lastAppliedMonth: expense.lastAppliedMonth || undefined,
+    receiptId: expense.receiptId || undefined,
+    merchant: expense.merchant || undefined,
+    receipt: expense.receipt || undefined,
+    subcategory: expense.subcategory || undefined,
+    itemName: expense.itemName || undefined,
+    brand: expense.brand || undefined,
+    size: expense.size || undefined,
+    person: expense.person || undefined,
+    receiptHook: expense.receiptHook || undefined,
+    lines: expense.lines || undefined,
+  });
 }
 
 export function normalizeExpense(expense) {
@@ -81,6 +97,37 @@ export function normalizeExpense(expense) {
   if (typeof expense.receipt === "string" && expense.receipt.startsWith("data:image/")) {
     next.receipt = expense.receipt;
   }
+  copyText(expense, next, "subcategory", 80);
+  copyText(expense, next, "itemName", 80);
+  copyText(expense, next, "brand", 80);
+  copyText(expense, next, "size", 40);
+  copyText(expense, next, "person", 40);
+  copyText(expense, next, "receiptHook", 120);
+  if (Array.isArray(expense.lines)) {
+    const lines = expense.lines.map(normalizeLine).filter(Boolean);
+    if (lines.length) next.lines = lines;
+  }
+  return next;
+}
+
+function copyText(source, target, key, max) {
+  if (typeof source[key] !== "string") return;
+  const value = source[key].trim();
+  if (value) target[key] = value.slice(0, max);
+}
+
+function normalizeLine(line) {
+  if (!line || typeof line.name !== "string" || !line.name.trim()) return null;
+  const qty = roundMoney(Number(line.qty));
+  const price = roundMoney(Number(line.price));
+  if (!(qty > 0) || !(price > 0)) return null;
+  const next = {
+    name: line.name.trim().slice(0, 80),
+    qty,
+    price,
+    lineTotal: roundMoney(qty * price),
+  };
+  if (typeof line.itemId === "string" && line.itemId) next.itemId = line.itemId;
   return next;
 }
 
@@ -131,6 +178,8 @@ function normalizeSale(sale) {
     earnedAmount,
     cashReceived,
   };
+  if (typeof sale.orderId === "string" && sale.orderId) next.orderId = sale.orderId;
+  if (typeof sale.paymentId === "string" && sale.paymentId) next.paymentId = sale.paymentId;
   const changed =
     sale.kind !== next.kind ||
     sale.amount !== next.amount ||
@@ -219,6 +268,8 @@ export function loadAll() {
   }
 
   state.budgets = loadBudgets();
+  state.categoryBudgets = loadCategoryBudgets();
+  state.alerts = loadAlerts();
   state.savings = loadSavings();
 
   const bills = readJson(BILLS_KEY);
@@ -238,6 +289,18 @@ export function loadAll() {
         return rows;
       }, []);
       if (changed) saveBills();
+    }
+  }
+
+  const checklist = readJson(CHECKLIST_KEY);
+  if (checklist.ok) {
+    if (checklist.missing) {
+      state.checklist = emptyChecklist();
+      saveChecklist();
+    } else {
+      const normalized = normalizeChecklist(checklist.value);
+      state.checklist = normalized.checklist;
+      if (normalized.changed) saveChecklist();
     }
   }
 }
@@ -265,6 +328,60 @@ function loadBudgets() {
   return clean;
 }
 
+function loadCategoryBudgets() {
+  const clean = {};
+  const stored = readJson(CATEGORY_BUDGET_KEY);
+  if (!stored.ok || !stored.value || typeof stored.value !== "object" || Array.isArray(stored.value)) {
+    return clean;
+  }
+  Object.entries(stored.value).forEach(([month, limits]) => {
+    if (!/^\d{4}-\d{2}$/.test(month) || !limits || typeof limits !== "object" || Array.isArray(limits)) return;
+    const row = {};
+    Object.entries(limits).forEach(([category, amount]) => {
+      const value = roundMoney(Number(amount));
+      if (typeof category === "string" && category && value > 0) row[category] = value;
+    });
+    if (Object.keys(row).length) clean[month] = row;
+  });
+  return clean;
+}
+
+function loadAlerts() {
+  const stored = readJson(ALERTS_KEY);
+  if (!stored.ok || !Array.isArray(stored.value)) return [];
+  const seen = new Set();
+  return stored.value.reduce((rows, item) => {
+    const next = normalizeAlert(item);
+    if (!next || seen.has(next.key)) return rows;
+    seen.add(next.key);
+    rows.push(next);
+    return rows;
+  }, []);
+}
+
+function normalizeAlert(item) {
+  if (!item || typeof item.key !== "string" || !item.key) return null;
+  const status = item.status === "resolved" || item.status === "snoozed" ? item.status : "open";
+  const params = {};
+  if (item.params && typeof item.params === "object" && !Array.isArray(item.params)) {
+    Object.entries(item.params).forEach(([key, value]) => {
+      if (typeof value === "string" || typeof value === "number") params[key] = value;
+    });
+  }
+  return {
+    key: item.key,
+    title: typeof item.title === "string" && item.title ? item.title : "Alert",
+    message: typeof item.message === "string" ? item.message : "",
+    severity: item.severity === "danger" ? "danger" : "warning",
+    screen: typeof item.screen === "string" && item.screen ? item.screen : "alerts",
+    params,
+    status,
+    snoozeUntil: typeof item.snoozeUntil === "string" ? item.snoozeUntil : "",
+    resolvedAt: typeof item.resolvedAt === "string" ? item.resolvedAt : "",
+    updatedAt: typeof item.updatedAt === "string" ? item.updatedAt : "",
+  };
+}
+
 function loadSavings() {
   const stored = readJson(SAVINGS_KEY);
   if (!stored.ok || stored.missing || !stored.value || typeof stored.value !== "object") {
@@ -273,12 +390,26 @@ function loadSavings() {
   const target = Number(stored.value.target);
   const saved = Number(stored.value.saved);
   const appliedAmount = Number(stored.value.appliedAmount);
+  const appliedMonth = typeof stored.value.appliedMonth === "string" ? stored.value.appliedMonth : "";
+  const appliedByMonth = {};
+  const rawMap = stored.value.appliedByMonth;
+  if (rawMap && typeof rawMap === "object" && !Array.isArray(rawMap)) {
+    Object.entries(rawMap).forEach(([month, amount]) => {
+      const value = roundMoney(Number(amount));
+      if (/^\d{4}-\d{2}$/.test(month) && value > 0) appliedByMonth[month] = value;
+    });
+  }
+  const legacyAmount = Number.isFinite(appliedAmount) && appliedAmount >= 0 ? roundMoney(appliedAmount) : 0;
+  if (appliedMonth && appliedByMonth[appliedMonth] == null && legacyAmount > 0) {
+    appliedByMonth[appliedMonth] = legacyAmount;
+  }
   return {
     name: typeof stored.value.name === "string" ? stored.value.name : "",
     target: Number.isFinite(target) && target > 0 ? roundMoney(target) : 0,
     saved: Number.isFinite(saved) && saved >= 0 ? roundMoney(saved) : 0,
-    appliedMonth: typeof stored.value.appliedMonth === "string" ? stored.value.appliedMonth : "",
-    appliedAmount: Number.isFinite(appliedAmount) && appliedAmount >= 0 ? roundMoney(appliedAmount) : 0,
+    appliedMonth,
+    appliedAmount: legacyAmount,
+    appliedByMonth,
   };
 }
 
@@ -288,6 +419,14 @@ export function saveSpaces() {
 
 export function saveSales() {
   localStorage.setItem(SALES_KEY, JSON.stringify(state.sales));
+}
+
+export function saveCategoryBudgets() {
+  localStorage.setItem(CATEGORY_BUDGET_KEY, JSON.stringify(state.categoryBudgets));
+}
+
+export function saveAlerts() {
+  localStorage.setItem(ALERTS_KEY, JSON.stringify(state.alerts));
 }
 
 export function saveBudgets() {
@@ -306,7 +445,11 @@ export function saveBills() {
   localStorage.setItem(BILLS_KEY, JSON.stringify(state.bills));
 }
 
-const RECEIPTS_KEY = "expense-receipts";
+export function saveChecklist() {
+  localStorage.setItem(CHECKLIST_KEY, JSON.stringify(state.checklist));
+}
+
+export const RECEIPTS_KEY = "expense-receipts";
 
 export function receiptPhotos() {
   const parsed = readJson(RECEIPTS_KEY);

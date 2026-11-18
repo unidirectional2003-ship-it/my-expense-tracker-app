@@ -54,7 +54,12 @@ export function businessBalance(sales, businessExpenses) {
 }
 
 export function savingsApplied(savings, month) {
-  if (!savings || savings.appliedMonth !== month) return 0;
+  if (!savings) return 0;
+  const map = savings.appliedByMonth;
+  if (map && typeof map === "object" && typeof map[month] === "number") {
+    return roundMoney(Math.max(0, map[month]));
+  }
+  if (savings.appliedMonth !== month) return 0;
   return roundMoney(Math.max(0, Number(savings.appliedAmount) || 0));
 }
 

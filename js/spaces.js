@@ -5,6 +5,9 @@ export const SPACES = {
     empty: "No home expenses yet. Add one above.",
     categories: [
       "Groceries",
+      "Beauty",
+      "Clothing",
+      "Household",
       "Bills",
       "Rent",
       "Kids",
@@ -19,6 +22,8 @@ export const SPACES = {
     totalLabel: "Total spent on the business",
     empty: "No business expenses yet. Add one above.",
     categories: [
+      "Business Supplies",
+      "Clothing",
       "Materials",
       "Rent",
       "Salaries",

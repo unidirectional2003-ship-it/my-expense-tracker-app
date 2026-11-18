@@ -4,4 +4,7 @@ export const session = {
   homeView: "expenses",
   editingId: null,
   editingSaleId: null,
+  spend: null,
+  checklistView: "list",
+  checklistItemId: null,
 };

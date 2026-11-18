@@ -390,7 +390,7 @@ function recentEntries() {
     rows.push({
       space: "home",
       date: expense.date,
-      title: expense.category,
+      title: expense.subcategory ? `${expense.category} · ${expense.subcategory}` : expense.category,
       detail: expenseDetail(expense),
       amount: expense.amount,
       id: expense.id,
@@ -404,7 +404,7 @@ function recentEntries() {
     rows.push({
       space: "business",
       date: expense.date,
-      title: expense.category,
+      title: expense.subcategory ? `${expense.category} · ${expense.subcategory}` : expense.category,
       detail: expenseDetail(expense),
       amount: expense.amount,
       id: expense.id,
@@ -433,7 +433,9 @@ function topCategories(month) {
   const totals = new Map();
   const add = (space, expense) => {
     if (!expense.date || expense.date.slice(0, 7) !== month) return;
-    const label = `${space === "home" ? "Home" : "Business"} · ${expense.category}`;
+    const label = expense.subcategory
+      ? `${space === "home" ? "Home" : "Business"} · ${expense.category} · ${expense.subcategory}`
+      : `${space === "home" ? "Home" : "Business"} · ${expense.category}`;
     totals.set(label, (totals.get(label) || 0) + expense.amount);
   };
   state.spaces.home.forEach((expense) => add("home", expense));

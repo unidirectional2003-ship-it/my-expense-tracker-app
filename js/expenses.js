@@ -183,7 +183,9 @@ export function renderExpenses() {
       top.className = "expense-top";
       const category = document.createElement("span");
       category.className = "category";
-      category.textContent = expense.category;
+      category.textContent = expense.subcategory
+        ? `${expense.category} · ${expense.subcategory}`
+        : expense.category;
       const amount = document.createElement("span");
       amount.className = "amount";
       amount.textContent = formatMoney(expense.amount);
@@ -284,8 +286,13 @@ export function applyMonthlyRepeats(now = today()) {
 
 function expenseMeta(expense) {
   const parts = [formatDate(expense.date)];
+  if (expense.itemName && expense.itemName !== expense.note) parts.push(expense.itemName);
+  if (expense.brand) parts.push(expense.brand);
+  if (expense.size) parts.push(`Size ${expense.size}`);
+  if (expense.person) parts.push(expense.person);
   if (expense.merchant && expense.merchant !== expense.note) parts.push(expense.merchant);
   parts.push(expense.note);
+  if (expense.receiptHook) parts.push(`Receipt: ${expense.receiptHook}`);
   return parts.join(" · ");
 }
 
@@ -293,7 +300,19 @@ function filterExpenses(expenses) {
   const query = searchInput.value.trim().toLowerCase();
   const category = categoryFilterInput.value;
   return expenses.filter((expense) => {
-    const haystack = `${expense.note} ${expense.merchant || ""}`.toLowerCase();
+    const haystack = [
+      expense.note,
+      expense.merchant,
+      expense.subcategory,
+      expense.itemName,
+      expense.brand,
+      expense.size,
+      expense.person,
+      expense.receiptHook,
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
     const matchesNote = !query || haystack.includes(query);
     const matchesCategory = !category || expense.category === category;
     return matchesNote && matchesCategory;
