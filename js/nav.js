@@ -7,6 +7,7 @@ export const MENU = [
   { screen: "accounts", label: "Accounts" },
   { screen: "approvals", label: "Pending Approvals", tabLabel: "Pending Approvals", tab: true, badge: "approvals" },
   { screen: "orders", label: "Orders", tab: true },
+  { screen: "udhaar", label: "Udhaar" },
   { screen: "work", label: "Work", tab: true },
   { screen: "expenses", label: "Expenses", tab: true },
   { screen: "groceries", label: "Groceries" },

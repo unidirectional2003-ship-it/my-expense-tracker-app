@@ -400,7 +400,7 @@ function itemName(line, amounts) {
     if (amount.raw) name = name.replace(amount.raw, " ");
   });
   name = name
-    .replace(/[x×=*]/g, " ")
+    .replace(/(^|\s)[x×*=]+(?=\s|$)/gi, " ")
     .replace(/\s+/g, " ")
     .trim();
   return name.slice(0, 80);

@@ -28,6 +28,23 @@ export function balanceOf(order) {
   return roundMoney(orderTotal(order) - amountPaid(order));
 }
 
+export function linkedOrderBalances() {
+  return get("orders")
+    .filter((order) => order && order.status !== "Cancelled" && balanceOf(order) > 0)
+    .map((order) => ({
+      orderId: order.id,
+      orderNumber: order.orderNumber,
+      person: order.customerName,
+      phone: order.phone || "",
+      amount: orderTotal(order),
+      paid: amountPaid(order),
+      balance: balanceOf(order),
+      givenDate: order.orderDate,
+      dueDate: order.deliveryDate || "",
+    }))
+    .sort((a, b) => String(a.dueDate).localeCompare(String(b.dueDate)) || a.orderNumber - b.orderNumber);
+}
+
 export function paymentStatusFor(order) {
   const paid = amountPaid(order);
   if (!(paid > 0)) return "Unpaid";
