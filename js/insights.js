@@ -72,7 +72,7 @@ export function snapshotFromData(data) {
     advances: figures.advances,
     hasBudget,
     budget: hasBudget ? budget : 0,
-    categoryBudgets: categoryLimits(data.categoryBudgets, month, home),
+    categoryBudgets: mergeBudgetLimits(data, month, home, business),
     savingsSaved: roundMoney(Number(data.savings?.saved) || 0),
     savingsTarget: roundMoney(Number(data.savings?.target) > 0 ? data.savings.target : 0),
     savingsName: typeof data.savings?.name === "string" ? data.savings.name.trim() : "",
@@ -90,7 +90,7 @@ export function snapshotFromData(data) {
     categories,
     savedAlerts,
     warnings,
-    openAlerts: savedAlerts + warnings,
+    openAlerts: savedAlerts,
     pendingApprovals: countWaiting(data.pendingApprovals),
     aiEndpoint: httpUrl(data.aiEndpoint),
   };
@@ -187,7 +187,8 @@ export function buildInsights(snapshot) {
           `The ${row.category} budget is under control, with ${formatMoney(row.spent)} of ${formatMoney(row.limit)} used.`,
           "budgets",
           month,
-          "home"
+          "home",
+          row.category
         )
       );
     } else if (row.spent === row.limit) {
@@ -197,7 +198,8 @@ export function buildInsights(snapshot) {
           `The ${row.category} budget of ${formatMoney(row.limit)} is finished.`,
           "budgets",
           month,
-          "home"
+          "home",
+          row.category
         )
       );
     } else {
@@ -207,7 +209,8 @@ export function buildInsights(snapshot) {
           `The ${row.category} budget is exceeded by ${formatMoney(roundMoney(row.spent - row.limit))}.`,
           "budgets",
           month,
-          "home"
+          "home",
+          row.category
         )
       );
     }
@@ -295,7 +298,7 @@ export function ruleSummary(snapshot) {
     `Home and business spending together is ${formatMoney(snapshot.totalSpending)}.`,
     ...insights.good.map((item) => item.text),
     ...insights.bad.map((item) => item.text),
-    `Pending approvals: ${snapshot.pendingApprovals}. Open alerts: ${snapshot.openAlerts}, made up of ${snapshot.savedAlerts} saved and ${snapshot.warnings} warnings this month.`,
+    `Pending approvals: ${snapshot.pendingApprovals}. Open alerts: ${snapshot.openAlerts}.`,
   ];
   return parts.join(" ");
 }
@@ -382,8 +385,8 @@ export async function explainMonth(snapshot, fetcher = globalThis.fetch) {
   }
 }
 
-function insight(type, text, screen, month, space) {
-  return { type, text, screen, month, space: space || "" };
+function insight(type, text, screen, month, space, category) {
+  return { type, text, screen, month, space: space || "", category: category || "" };
 }
 
 function previousMonth(month) {
@@ -414,6 +417,38 @@ function categoryLimits(limits, month, home) {
       spent: spent.get(category) || 0,
     }))
     .filter((row) => row.category && row.limit > 0);
+}
+
+function mergeBudgetLimits(data, month, home, business) {
+  const fromScreen = [];
+  const seen = new Set();
+  (Array.isArray(data.budgetRows) ? data.budgetRows : []).forEach((row) => {
+    if (!row || row.month !== month || typeof row.category !== "string") return;
+    const limit = roundMoney(Number(row.limit));
+    if (!(limit > 0) || seen.has(row.category)) return;
+    seen.add(row.category);
+    fromScreen.push({
+      category: row.category,
+      limit,
+      spent: spentForLimit(row.category, month, home, business),
+    });
+  });
+  categoryLimits(data.categoryBudgets, month, home).forEach((row) => {
+    if (seen.has(row.category)) return;
+    fromScreen.push(row);
+  });
+  return fromScreen;
+}
+
+function spentForLimit(category, month, home, business) {
+  const rows = [...(home || []), ...(business || [])];
+  return roundMoney(
+    rows.reduce((sum, expense) => {
+      if (!expense || !inMonth(expense.date, month)) return sum;
+      if (category !== "Total" && expense.category !== category) return sum;
+      return sum + (Number(expense.amount) || 0);
+    }, 0)
+  );
 }
 
 function categoryComparisons(home, business, month, previous) {
@@ -486,9 +521,9 @@ function countOpenAlerts(records, todayValue) {
     if (!alert || typeof alert !== "object") return;
     const status = String(alert.status || "open").toLowerCase();
     if (CLOSED.has(status)) return;
-    if (status === "snoozed") {
+    if (status === "snoozed" || status === "ignored") {
       const until = typeof alert.snoozeUntil === "string" ? alert.snoozeUntil : "";
-      if (!until || until > todayValue) return;
+      if (until > todayValue) return;
     }
     const id = String(alert.key || alert.id || "");
     if (id) {

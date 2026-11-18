@@ -46,12 +46,13 @@ function bindBriefing() {
   const root = document.getElementById("home-briefing");
   if (!root) return;
   root.addEventListener("click", (event) => {
-    const button = event.target.closest("[data-screen]");
+    const button = event.target.closest("[data-target]");
     if (!button || !root.contains(button)) return;
     const params = {};
     if (button.dataset.month) params.month = button.dataset.month;
     if (button.dataset.space) params.space = button.dataset.space;
-    goTo(button.dataset.screen, params);
+    if (button.dataset.category) params.category = button.dataset.category;
+    goTo(button.dataset.target, params);
   });
 
   const explain = document.getElementById("explain-month");
@@ -100,7 +101,8 @@ function currentSnapshot(month) {
     bills: state.bills,
     orders,
     ordersKnown,
-    storedAlerts: [...(Array.isArray(state.alerts) ? state.alerts : []), ...storedAlerts],
+    budgetRows: readList("budgets").rows,
+    storedAlerts,
     pendingApprovals: [...(Array.isArray(state.pendingApprovals) ? state.pendingApprovals : []), ...pending],
     aiEndpoint: readAiEndpoint(settings),
   });
@@ -130,9 +132,10 @@ function fillNews(host, items, emptyText) {
     const button = document.createElement("button");
     button.type = "button";
     button.className = item.type === "good" ? "news-card news-card-good" : "news-card news-card-bad";
-    button.dataset.screen = item.screen;
+    button.dataset.target = item.screen;
     button.dataset.month = item.month;
     if (item.space) button.dataset.space = item.space;
+    if (item.category) button.dataset.category = item.category;
     button.textContent = item.text;
     list.append(button);
   });
@@ -177,7 +180,7 @@ function fillQuick(host, snapshot) {
     },
     {
       label: "Open alerts",
-      meta: `${snapshot.savedAlerts} saved, ${snapshot.warnings} warnings`,
+      meta: snapshot.openAlerts === 0 ? "None open" : "Still open",
       value: String(snapshot.openAlerts),
       tone: snapshot.openAlerts > 0 ? "dash-card-spending" : "dash-card-income",
       screen: "alerts",
@@ -188,7 +191,7 @@ function fillQuick(host, snapshot) {
       const button = document.createElement("button");
       button.type = "button";
       button.className = `dash-card quick-card ${card.tone}`;
-      button.dataset.screen = card.screen;
+      button.dataset.target = card.screen;
       button.dataset.month = snapshot.month;
       const label = document.createElement("p");
       label.className = "summary-label";
