@@ -280,6 +280,7 @@
             <button class="view-tab is-active" type="button" role="tab" aria-selected="true" data-view="expenses">Expenses</button>
             <button class="view-tab" type="button" role="tab" aria-selected="false" data-view="sales">Income / Sales</button>
             <button class="view-tab" type="button" role="tab" aria-selected="false" data-view="profit">Profit</button>
+            <button class="view-tab" type="button" role="tab" aria-selected="false" data-view="withdrawal">For myself</button>
           </div>
 
           <div class="view-tabs" id="home-views" role="tablist" aria-label="Home">
@@ -572,10 +573,40 @@
               </div>
               <div class="profit-stat">
                 <p class="summary-label">Actual profit</p>
-                <p class="meta">Earned revenue minus expenses</p>
+                <p class="meta">Earned revenue minus business expenses. Money taken for yourself is not subtracted.</p>
                 <p class="profit-figure" id="profit-amount">Rs 0</p>
               </div>
+              <div class="profit-stat">
+                <p class="summary-label">Taken for myself</p>
+                <p class="meta">Personal income and a business withdrawal. Not a business expense.</p>
+                <p class="profit-figure" id="profit-draw">Rs 0</p>
+              </div>
             </div>
+          </section>
+
+          <section class="card" id="withdrawal-panel" data-panel="withdrawal" aria-labelledby="withdrawal-heading" hidden>
+            <h2 id="withdrawal-heading">Take money for myself</h2>
+            <p class="meta">
+              This counts as personal income and as a withdrawal from the business. It is not saved as a sale or as a business expense, so profit stays earned revenue minus business expenses.
+            </p>
+            <form id="withdrawal-form" novalidate>
+              <div class="field">
+                <label for="withdrawal-amount">Amount</label>
+                <input id="withdrawal-amount" name="amount" type="number" inputmode="decimal" min="0.01" step="0.01" placeholder="0.00" required />
+              </div>
+              <div class="field">
+                <label for="withdrawal-date">Date</label>
+                <input id="withdrawal-date" name="date" type="date" required />
+              </div>
+              <div class="field">
+                <label for="withdrawal-note">Note</label>
+                <input id="withdrawal-note" name="note" type="text" maxlength="120" placeholder="For myself" />
+              </div>
+              <p class="form-error" id="withdrawal-error" role="alert" hidden></p>
+              <button type="submit" class="primary">Take money for myself</button>
+            </form>
+            <ul class="expense-list" id="withdrawal-list"></ul>
+            <p class="empty" id="withdrawal-empty">You have not taken money for yourself yet.</p>
           </section>
           </div>
         </div>
@@ -644,6 +675,52 @@
             <button type="button" class="edit-cancel settings-lock-now" id="lock-now">Lock now</button>
           </section>
 
+          <section class="settings-block" aria-labelledby="business-profile-heading">
+            <h3 id="business-profile-heading">Business profile</h3>
+            <p class="meta">Shop name, logo, phone, address, and account details appear on invoices. The footer note is printed at the bottom.</p>
+            <form id="business-profile-form" novalidate>
+              <div class="field">
+                <label for="profile-shop">Shop name</label>
+                <input id="profile-shop" name="shopName" type="text" maxlength="80" placeholder="Shop name" />
+              </div>
+              <div class="field">
+                <label for="profile-logo">Logo</label>
+                <div class="logo-row">
+                  <img id="profile-logo-preview" class="logo-preview" alt="" hidden />
+                  <input id="profile-logo" name="logo" type="file" accept="image/*" />
+                </div>
+                <button type="button" class="edit-cancel" id="profile-logo-clear" hidden>Remove logo</button>
+              </div>
+              <div class="field">
+                <label for="profile-phone">Phone</label>
+                <input id="profile-phone" name="phone" type="tel" maxlength="40" placeholder="03xx" />
+              </div>
+              <div class="field">
+                <label for="profile-address">Address</label>
+                <textarea id="profile-address" name="address" maxlength="240" rows="2" placeholder="Shop address"></textarea>
+              </div>
+              <div class="field">
+                <label for="profile-bank">Bank account</label>
+                <textarea id="profile-bank" name="bank" maxlength="240" rows="2" placeholder="Bank, account title, account number"></textarea>
+              </div>
+              <div class="field">
+                <label for="profile-easypaisa">Easypaisa</label>
+                <input id="profile-easypaisa" name="easypaisa" type="text" maxlength="80" placeholder="Easypaisa account" />
+              </div>
+              <div class="field">
+                <label for="profile-jazzcash">JazzCash</label>
+                <input id="profile-jazzcash" name="jazzcash" type="text" maxlength="80" placeholder="JazzCash account" />
+              </div>
+              <div class="field">
+                <label for="profile-footer">Footer note</label>
+                <textarea id="profile-footer" name="footer" maxlength="240" rows="2" placeholder="Thank you for your order"></textarea>
+              </div>
+              <p class="form-error" id="profile-error" role="alert" hidden></p>
+              <p class="meta" id="profile-ok" role="status" hidden></p>
+              <button type="submit" class="primary">Save business profile</button>
+            </form>
+          </section>
+
           <section class="settings-block" aria-labelledby="backup-heading">
             <h3 id="backup-heading">Backup</h3>
             <p class="meta">
@@ -664,6 +741,26 @@
             </div>
             <p class="form-error" id="backup-error" role="alert" hidden></p>
             <p class="meta" id="backup-ok" role="status" hidden></p>
+          </section>
+
+          <section class="settings-block" aria-labelledby="whatsapp-heading">
+            <h3 id="whatsapp-heading">WhatsApp messages</h3>
+            <p class="meta">
+              These are the ready messages for Message on WhatsApp. You can use {name}, {balance}, and {orders}.
+              A number written as 03xx is opened as +92.
+            </p>
+            <form id="whatsapp-templates-form">
+              <div class="field">
+                <label for="wa-order-ready">Order ready</label>
+                <textarea id="wa-order-ready" name="orderReady" rows="3" maxlength="500"></textarea>
+              </div>
+              <div class="field">
+                <label for="wa-payment-reminder">Payment reminder</label>
+                <textarea id="wa-payment-reminder" name="paymentReminder" rows="3" maxlength="500"></textarea>
+              </div>
+              <p class="meta" id="wa-templates-ok" role="status" hidden></p>
+              <button type="submit" class="primary">Save messages</button>
+            </form>
           </section>
 
           <button type="button" class="edit-cancel" id="settings-close">Close</button>
@@ -920,6 +1017,7 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.6/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
     <script type="module" src="js/main.js"></script>
   </body>
 </html>

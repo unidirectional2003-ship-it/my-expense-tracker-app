@@ -320,8 +320,10 @@ function wire(root) {
     else loadStatementText(await readText(file), "csv");
   });
 
-  root.querySelector("#import-rows").addEventListener("input", (event) => {
-    if (event.target.matches("[data-kind]")) paintReview();
+  root.querySelector("#import-rows").addEventListener("change", (event) => {
+    if (!event.target.matches("[data-kind]")) return;
+    reviewRows = [...event.currentTarget.querySelectorAll("[data-import-row]")].map(readRow);
+    paintReview();
   });
 
   root.querySelector("#confirm-import").addEventListener("click", () => commitReview(false));
@@ -463,6 +465,8 @@ function setReview(rows) {
     if (match) row.orderId = match.id;
   });
   setImportError("");
+  const host = document.getElementById("import-rows");
+  if (host) host.replaceChildren();
   paintReview();
 }
 
@@ -476,8 +480,6 @@ function paintReview() {
     return;
   }
   section.hidden = false;
-  const edited = [...host.querySelectorAll("[data-import-row]")].map(readRow);
-  if (edited.length === reviewRows.length) reviewRows = edited;
   host.replaceChildren();
   reviewRows.forEach((row, index) => {
     const fresh = annotateImports([row], existingMoney().filter((item) => item !== row))[0];

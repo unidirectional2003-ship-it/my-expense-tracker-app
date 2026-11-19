@@ -6,7 +6,6 @@ const PLACEHOLDERS = [
   ["beauty", "Beauty"],
   ["clothing", "Clothing"],
   ["approvals", "Pending Approvals"],
-  ["reports", "Reports"],
   ["settings", "Settings"],
 ];
 

@@ -5,6 +5,7 @@ import { goTo, currentScreen, ensureScreen, registerScreen } from "./router.js";
 import { budgetSnapshot } from "./budgets.js";
 import { getOverdueChecklistItems } from "./checklist.js";
 import { balanceOf } from "./order-book.js";
+import { deliveryProblems } from "./delivery.js";
 import { listUdhaar, remainingOf } from "./udhaar-book.js";
 import { refreshBadges } from "./nav.js";
 import { billAlertPlans, loadBillBook } from "./bill-book.js";
@@ -302,6 +303,8 @@ function reveal(alert) {
       node = document.querySelector(`[data-order-id="${CSS.escape(id)}"]`);
     } else if (id && alert.screen === "work") {
       node = document.querySelector(`[data-work-id="${CSS.escape(id)}"]`);
+    } else if (id && alert.screen === "deliveries") {
+      node = document.querySelector(`[data-screen="deliveries"] [data-delivery-id="${CSS.escape(id)}"]`);
     } else if (id && alert.screen === "udhaar") {
       node = document.querySelector(`[data-udhaar-id="${CSS.escape(id)}"]`);
     }

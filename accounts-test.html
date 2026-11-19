@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head><meta charset="UTF-8" /><title>Accounts test</title></head>
+  <body>
+    <div id="screen-root"></div>
+    <div id="dashboard-panel"><div class="field"></div></div>
+    <section id="home-summary-panel"></section>
+    <form id="expense-form"><p class="form-error" hidden></p></form>
+    <form id="sale-form"><p class="form-error" hidden></p></form>
+    <pre id="out"></pre>
+    <script type="module">
+      import { initStorage, get } from "./js/storage.js";
+      import { loadAll, state } from "./js/store.js";
+      import { createOrder } from "./js/order-book.js";
+      import { refreshAlerts } from "./js/alerts.js";
+      import { registerApprovals } from "./js/approvals.js";
+      import {
+        registerAccounts,
+        ingestBankText,
+        loadStatementText,
+        importScreenshotFile,
+        renderAccountBalances,
+      } from "./js/accounts.js";
+
+      window.addEventListener("unhandledrejection", (event) => {
+        document.getElementById("out").textContent += `\nERROR ${event.reason}`;
+      });
+      const lines = [];
+      const check = (name, ok) => lines.push(`${ok ? "PASS" : "FAIL"} ${name}`);
+
+      initStorage();
+      loadAll();
+      registerApprovals();
+      registerAccounts();
+      renderAccountBalances();
+
+      function fillAccount(name, type, provider, opening, last4) {
+        document.getElementById("account-name").value = name;
+        document.getElementById("account-type").value = type;
+        document.getElementById("account-provider").value = provider;
+        document.getElementById("account-opening").value = opening;
+        document.getElementById("account-last4").value = last4;
+        document.getElementById("account-form").requestSubmit();
+      }
+
+      fillAccount("Purse", "Cash", "", "1000", "");
+      fillAccount("HBL", "Bank", "HBL", "0", "4242");
+      fillAccount("Easy", "Easypaisa", "Easypaisa", "0", "");
+      check("3 accounts", get("accounts").length === 3);
+
+      const before = get("accounts").length;
+      fillAccount("1234 5678 9012 3456", "Bank", "HBL", "0", "");
+      const refused = !document.getElementById("account-error").hidden;
+      check("long account number refused", refused && get("accounts").length === before);
+      fillAccount("Wallet", "JazzCash", "JazzCash", "0", "123456789");
+      check("long last 4 refused", !document.getElementById("account-error").hidden && get("accounts").length === before);
+
+      state.spaces.home.unshift({
+        id: "manual-200",
+        amount: 200,
+        category: "Groceries",
+        date: "2026-11-19",
+        note: "Linked shop",
+        accountId: get("accounts")[0].id,
+      });
+      state.spaces.home.unshift({
+        id: "manual-300",
+        amount: 300,
+        category: "Groceries",
+        date: "2026-11-18",
+        note: "Market run",
+      });
+
+      document.querySelector("[data-check-balance]").click();
+      const reconcile = document.querySelector("[data-reconcile]");
+      reconcile.elements.stated.value = "500";
+      reconcile.requestSubmit();
+      const diffText = document.getElementById("reconcile-diff").textContent;
+      check("reconcile difference", diffText.includes("Rs 800") && diffText.includes("Rs 500") && diffText.includes("-Rs 300"));
+      check("missing entry listed", diffText && document.querySelector("[data-reconcile-result]").textContent.includes("Market run"));
+      refreshAlerts();
+      check("mismatch alert", get("alerts").some((alert) => String(alert.id).startsWith("reconcile:") && alert.status !== "resolved"));
+
+      const shot = new File([new Uint8Array([137, 80, 78, 71])], "wallet.png", { type: "image/png" });
+      const shotResult = await Promise.race([
+        importScreenshotFile(shot).then((text) => text || "EMPTY"),
+        new Promise((resolve) => setTimeout(() => resolve("TIMEOUT"), 8000)),
+      ]);
+      ingestBankText("Rs 150 debited on 19/11/2026 Ref TIDSHOT1 to Ali");
+      const shotRow = document.querySelector("[data-import-row]");
+      check("screenshot import", Boolean(shotRow) && shotRow.querySelector("[data-amount]").value === "150.00");
+      check("screenshot stayed local", shotResult === "TIMEOUT" || shotResult === "EMPTY" || typeof shotResult === "string");
+      document.getElementById("confirm-import").click();
+
+      document.getElementById("account-sms").value = "You have received Rs 2,500 from Sara. TID ABCD99 on 19/11/2026.";
+      document.getElementById("read-sms").click();
+      const cities = get("cities");
+      const order = createOrder({
+        customerName: "Sara",
+        phone: "03001234567",
+        address: "House 1",
+        cityId: cities[0].id,
+        items: [{ name: "Dress", qty: 1, price: 2500 }],
+        orderDate: "2026-11-19",
+        deliveryDate: "2026-11-20",
+      });
+      ingestBankText("You have received Rs 2,500 from Sara. TID ABCD99 on 19/11/2026.");
+      const smsRow = document.querySelector("[data-import-row]");
+      check("sms import", smsRow && smsRow.querySelector("[data-kind]").value === "income");
+      check("order suggestion", Boolean(smsRow.querySelector("[data-link-order]")) && smsRow.textContent.includes("Sara"));
+      document.getElementById("confirm-import").click();
+      const paid = get("orders", order.order.id);
+      const payment = paid.payments[paid.payments.length - 1];
+      check("payment verified", payment && payment.verified === true && payment.amount === 2500);
+      check("no second income", state.sales.filter((sale) => sale.paymentId === payment.id).length === 1);
+
+      ingestBankText("You have received Rs 2,500 from Sara. TID ABCD99 on 19/11/2026.");
+      const duplicate = document.querySelector("[data-duplicate]");
+      const box = document.querySelector("[data-import-row] [data-include]");
+      check("duplicate flagged", Boolean(duplicate) && box && box.checked === false);
+
+      loadStatementText("Date,Amount,Description,Type,Reference\n19/11/2026,400,Market,debit,REF400\n", "csv");
+      document.querySelector("#statement-mapping button").click();
+      const csvRow = document.querySelector("[data-import-row]");
+      check("csv mapping", csvRow && csvRow.querySelector("[data-amount]").value === "400.00" && csvRow.querySelector("[data-kind]").value === "expense");
+      document.getElementById("approval-import").click();
+      check("save for approval", get("pendingApprovals").some((item) => item.reference === "REF400" && item.status === "waiting"));
+      check("approval not in totals", !state.spaces.home.some((item) => item.reference === "REF400"));
+
+      loadAll();
+      const cash = get("accounts").find((account) => account.name === "Purse");
+      const linked = state.spaces.home.find((item) => item.reference === "TIDSHOT1");
+      check("confirmed expense kept account", linked && linked.accountId === cash.id);
+      renderAccountBalances();
+      check("home balances", document.getElementById("account-balances").textContent.includes("Purse") && document.getElementById("home-account-balances").textContent.includes("HBL"));
+      check("no account entry kept", state.spaces.home.some((item) => item.note === "Market run" && !item.accountId));
+
+      document.getElementById("out").textContent = lines.join("\n");
+    </script>
+  </body>
+</html>

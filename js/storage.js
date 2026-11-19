@@ -9,6 +9,9 @@ export const STORAGE_VERSION = 1;
 
 export const COLLECTIONS = [
   "orders",
+  "invoices",
+  "quotes",
+  "customers",
   "udhaar",
   "workItems",
   "expenses",

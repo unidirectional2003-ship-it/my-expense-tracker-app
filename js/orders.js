@@ -1,9 +1,11 @@
 import { formatMoney } from "./money.js";
 import { today, formatDate } from "./dates.js";
-import { get } from "./storage.js";
-import { ensureScreen, registerScreen } from "./router.js";
+import { deleteRecord, get } from "./storage.js";
+import { ensureScreen, goTo, registerScreen } from "./router.js";
+import { createCustomer, searchCustomers } from "./customer-book.js";
 import { attachReceipt, pinReceipt } from "./receipt-hook.js";
 import { viewReceiptButton } from "./receipt.js";
+import { openInvoice } from "./invoices.js";
 import {
   ORDER_STATUSES,
   PAYMENT_STATUSES,
@@ -217,7 +219,25 @@ function orderCard(order) {
     submit
   );
 
-  card.append(statusField, payLabel, payments);
+  const makeInvoice = document.createElement("button");
+  makeInvoice.type = "button";
+  makeInvoice.className = "edit";
+  makeInvoice.dataset.makeInvoice = order.id;
+  makeInvoice.textContent = "Make Invoice";
+
+  const actions = document.createElement("div");
+  actions.className = "customer-actions";
+  actions.append(makeInvoice);
+  if (order.customerId) {
+    const viewCustomer = document.createElement("button");
+    viewCustomer.type = "button";
+    viewCustomer.className = "edit";
+    viewCustomer.dataset.viewCustomer = order.customerId;
+    viewCustomer.textContent = "View customer";
+    actions.append(viewCustomer);
+  }
+
+  card.append(actions, statusField, payLabel, payments);
   if (balanceOf(order) > 0) card.append(payForm);
   return card;
 }
@@ -270,8 +290,23 @@ export function registerOrders() {
   form.id = "order-form";
   form.noValidate = true;
 
+  const finder = input("order-customer-search", "search", { placeholder: "Name or phone" });
+  const results = document.createElement("div");
+  results.id = "order-customer-results";
+  results.className = "customer-results";
+  results.hidden = true;
+  const picked = document.createElement("p");
+  picked.id = "order-customer-picked";
+  picked.className = "meta";
+  picked.hidden = true;
   const customer = input("order-customer", "text", { maxLength: 80, placeholder: "Customer name", required: true });
-  const phone = input("order-phone", "tel", { maxLength: 20, placeholder: "03xx", required: true });
+  const phone = input("order-phone", "tel", { maxLength: 24, placeholder: "03xx", required: true });
+  const whatsapp = input("order-whatsapp", "tel", { maxLength: 24, placeholder: "Same as phone" });
+  const whatsappField = field("WhatsApp number", whatsapp);
+  const customerNotes = input("order-customer-notes", "text", { maxLength: 240, placeholder: "Optional, saved on the customer" });
+  const customerNotesField = field("Customer notes (optional)", customerNotes);
+  let selectedCustomerId = "";
+  let whatsappEdited = false;
   const city = select("order-city", [], "Select a city");
   const newCityWrap = document.createElement("div");
   newCityWrap.className = "new-city";
@@ -314,8 +349,13 @@ export function registerOrders() {
   submit.textContent = "Save order";
 
   form.append(
+    field("Find a customer", finder),
+    results,
+    picked,
     field("Customer name", customer),
     field("Phone", phone),
+    whatsappField,
+    customerNotesField,
     field("City", city),
     newCityWrap,
     field("Address (optional)", address),
@@ -365,7 +405,7 @@ export function registerOrders() {
   addOrder.textContent = "Add order";
   addOrder.addEventListener("click", () => {
     const form = document.getElementById("order-form");
-    document.getElementById("order-customer")?.focus();
+    document.getElementById("order-customer-search")?.focus();
     if (form) form.scrollIntoView({ block: "start" });
   });
   listCard.append(listTitle, filters, list, empty, addOrder);
@@ -376,6 +416,75 @@ export function registerOrders() {
     error.textContent = message;
     error.hidden = !message;
   }
+
+  const clearPick = document.createElement("button");
+  clearPick.type = "button";
+  clearPick.className = "text-button";
+  clearPick.textContent = "Not this customer";
+  clearPick.hidden = true;
+  picked.after(clearPick);
+
+  function showPicked(person) {
+    selectedCustomerId = person ? person.id : "";
+    whatsappField.hidden = Boolean(person);
+    customerNotesField.hidden = Boolean(person);
+    clearPick.hidden = !person;
+    if (!person) {
+      picked.hidden = true;
+      picked.textContent = "";
+      whatsappEdited = false;
+      whatsapp.value = phone.value;
+      return;
+    }
+    customer.value = person.name || "";
+    phone.value = person.phone || "";
+    address.value = person.address || "";
+    if (person.cityId) fillCitySelect(city, true, person.cityId);
+    picked.hidden = false;
+    picked.textContent = `Linked to ${person.name}. Phone, city, and address here are for this order.`;
+    results.hidden = true;
+    results.replaceChildren();
+    finder.value = "";
+  }
+
+  clearPick.addEventListener("click", () => showPicked(null));
+
+  phone.addEventListener("input", () => {
+    if (!whatsappEdited && !selectedCustomerId) whatsapp.value = phone.value;
+  });
+
+  whatsapp.addEventListener("input", () => {
+    whatsappEdited = whatsapp.value.trim() !== phone.value.trim();
+  });
+
+  finder.addEventListener("input", () => {
+    const query = finder.value.trim();
+    if (selectedCustomerId) showPicked(null);
+    if (!query) {
+      results.hidden = true;
+      results.replaceChildren();
+      return;
+    }
+    const matches = searchCustomers(query).slice(0, 8);
+    results.hidden = false;
+    if (!matches.length) {
+      const none = document.createElement("p");
+      none.className = "meta";
+      none.textContent = "No customer found. Saving this order adds a new one.";
+      results.replaceChildren(none);
+      return;
+    }
+    results.replaceChildren(
+      ...matches.map((person) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "edit";
+        button.textContent = `${person.name} · ${person.phone}${person.cityName ? ` · ${person.cityName}` : ""}`;
+        button.addEventListener("click", () => showPicked(person));
+        return button;
+      })
+    );
+  });
 
   city.addEventListener("change", () => {
     newCityWrap.hidden = city.value !== "__new__";
@@ -419,7 +528,26 @@ export function registerOrders() {
       showError("Save the new city before the order, or choose one from the list.");
       return;
     }
+    let customerId = selectedCustomerId;
+    let createdNew = false;
+    if (!customerId) {
+      const made = createCustomer({
+        name: customer.value,
+        phone: phone.value,
+        whatsapp: whatsapp.value,
+        cityId: city.value,
+        address: address.value,
+        notes: customerNotes.value,
+      });
+      if (!made.ok) {
+        showError(made.error);
+        return;
+      }
+      customerId = made.customer.id;
+      createdNew = true;
+    }
     const result = createOrder({
+      customerId,
       customerName: customer.value,
       phone: phone.value,
       cityId: city.value,
@@ -433,11 +561,20 @@ export function registerOrders() {
       advanceDate: orderDate.value,
     });
     if (!result.ok) {
+      if (createdNew) deleteRecord("customers", customerId);
       showError(result.error);
       return;
     }
     showError("");
     form.reset();
+    selectedCustomerId = "";
+    whatsappEdited = false;
+    whatsappField.hidden = false;
+    customerNotesField.hidden = false;
+    picked.hidden = true;
+    clearPick.hidden = true;
+    results.hidden = true;
+    results.replaceChildren();
     orderDate.value = today();
     deliveryDate.value = today();
     resetItems(form);
@@ -445,7 +582,14 @@ export function registerOrders() {
     fillCitySelect(city, true);
     fillCitySelect(cityFilter, false);
     renderOrderList();
-    customer.focus();
+    finder.focus();
+  });
+
+  list.addEventListener("click", (event) => {
+    const invoice = event.target.closest("[data-make-invoice]");
+    if (invoice) openInvoice(invoice.dataset.makeInvoice);
+    const view = event.target.closest("[data-view-customer]");
+    if (view) goTo("customers", { id: view.dataset.viewCustomer });
   });
 
   list.addEventListener("change", (event) => {

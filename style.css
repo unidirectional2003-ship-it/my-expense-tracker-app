@@ -307,7 +307,8 @@ label {
 }
 
 input,
-select {
+select,
+textarea {
   width: 100%;
   border: 2px solid var(--pistachio);
   border-radius: 16px;
@@ -319,21 +320,29 @@ select {
   accent-color: var(--pistachio-deep);
 }
 
+textarea {
+  min-height: 96px;
+  resize: vertical;
+}
+
 .app[data-space="business"] input,
-.app[data-space="business"] select {
+.app[data-space="business"] select,
+.app[data-space="business"] textarea {
   border-color: var(--pink-deep);
   accent-color: var(--pink-deep);
 }
 
 input:focus,
-select:focus {
+select:focus,
+textarea:focus {
   outline: 3px solid var(--pistachio-deep);
   outline-offset: 1px;
   background: #fff;
 }
 
 .app[data-space="business"] input:focus,
-.app[data-space="business"] select:focus {
+.app[data-space="business"] select:focus,
+.app[data-space="business"] textarea:focus {
   outline-color: var(--pink-deep);
 }
 
@@ -724,6 +733,10 @@ select.invalid {
   grid-template-columns: repeat(3, 1fr);
   gap: 8px;
   margin-bottom: 18px;
+}
+
+#business-views {
+  grid-template-columns: 1fr 1fr;
 }
 
 #home-views {
@@ -2075,7 +2088,8 @@ body.settings-open {
   font-weight: 800;
 }
 
-.verified-badge {
+.verified-badge,
+.repeat-badge {
   display: inline-block;
   margin-left: 8px;
   padding: 2px 8px;
@@ -2084,6 +2098,75 @@ body.settings-open {
   font-size: 0.78rem;
   font-weight: 800;
   vertical-align: middle;
+}
+
+.repeat-badge {
+  background: var(--pistachio);
+}
+
+.customer-results {
+  display: grid;
+  gap: 8px;
+}
+
+.customer-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.customer-actions select {
+  width: auto;
+  flex: 1 1 180px;
+}
+
+.customer-actions .primary,
+.customer-actions .edit {
+  width: auto;
+}
+
+a.primary {
+  display: inline-block;
+  text-decoration: none;
+  text-align: center;
+}
+
+a.primary.is-disabled {
+  pointer-events: none;
+  opacity: 0.55;
+}
+
+.customer-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.customer-stat {
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: var(--cream);
+  border: 2px solid var(--pistachio);
+}
+
+.customer-stat span,
+.customer-stat strong {
+  display: block;
+}
+
+.customer-stat span {
+  font-weight: 700;
+}
+
+.customer-stat strong {
+  margin-top: 4px;
+  font-size: 1.15rem;
+}
+
+#whatsapp-templates-form {
+  display: grid;
+  gap: 12px;
 }
 
 .scan-staged {
@@ -2105,6 +2188,46 @@ body.settings-open {
 #receipt-amount-hint.is-match {
   color: #3d6b32;
   font-weight: 800;
+}
+
+.export-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0 4px;
+}
+
+.export-actions .edit {
+  margin: 0;
+}
+
+.report-block {
+  margin-top: 22px;
+}
+
+.report-block h2 {
+  margin-bottom: 6px;
+}
+
+.report-compare.is-up {
+  color: #3d6b32;
+  font-weight: 800;
+}
+
+.report-compare.is-down {
+  color: #9c3d52;
+  font-weight: 800;
+}
+
+.report-columns {
+  display: grid;
+  gap: 16px;
+}
+
+@media (min-width: 700px) {
+  .report-columns {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
 }
 
 .grocery-review {
@@ -2131,4 +2254,71 @@ body.settings-open {
 
 .grocery-unsure {
   box-shadow: inset 4px 0 0 var(--pink-deep);
+}
+
+.udhaar-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin: 16px 0;
+}
+
+.udhaar-tab {
+  border: 0;
+  border-radius: 16px;
+  padding: 12px 8px;
+  font: inherit;
+  font-weight: 800;
+  color: var(--text);
+  background: #fff;
+  cursor: pointer;
+}
+
+.udhaar-tab.is-active {
+  background: var(--pistachio);
+  box-shadow: 0 3px 0 var(--pistachio-deep);
+}
+
+.udhaar-tab:focus-visible {
+  outline: 3px solid var(--text);
+  outline-offset: 2px;
+}
+
+.udhaar-list {
+  display: grid;
+  gap: 12px;
+}
+
+.udhaar-card.is-linked {
+  border-style: dashed;
+}
+
+.udhaar-card.is-overdue {
+  border-color: #d92b2b;
+  background: #fff5f5;
+}
+
+.udhaar-card.is-target {
+  outline: 3px solid var(--pistachio-deep);
+  outline-offset: 2px;
+}
+
+.udhaar-status {
+  margin: 0;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #fff;
+  font-size: 0.85rem;
+  font-weight: 800;
+}
+
+.udhaar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.udhaar-actions a.edit {
+  display: inline-block;
+  text-decoration: none;
 }

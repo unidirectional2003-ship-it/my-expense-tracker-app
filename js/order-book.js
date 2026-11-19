@@ -4,7 +4,7 @@ import { recordPaymentIncome, refreshOrderIncome } from "./order-income.js";
 
 export const ORDER_STATUSES = ["Pending", "In Progress", "Fulfilled", "Cancelled"];
 export const PAYMENT_STATUSES = ["Unpaid", "Advance Received", "Paid in Full"];
-export const PAYMENT_METHODS = ["Cash", "Bank Transfer", "Easypaisa", "JazzCash"];
+export const PAYMENT_METHODS = ["Cash", "Bank Transfer", "Easypaisa", "JazzCash", "COD"];
 export const WORK_STATUSES = [
   "Not Started",
   "Cutting/Preparing",
@@ -18,6 +18,25 @@ export function orderTotal(order) {
   return roundMoney(
     (order.items || []).reduce((sum, item) => sum + roundMoney(Number(item.qty) * Number(item.price)), 0)
   );
+}
+
+export function orderCost(order) {
+  const items = order.items || [];
+  if (!items.length) return null;
+  let total = 0;
+  for (const item of items) {
+    if (item.unitCost == null || item.unitCost === "") return null;
+    const cost = Number(item.unitCost);
+    if (!Number.isFinite(cost) || cost < 0) return null;
+    total += Number(item.qty) * cost;
+  }
+  return roundMoney(total);
+}
+
+export function orderProfit(order) {
+  const cost = orderCost(order);
+  if (cost == null) return null;
+  return roundMoney(orderTotal(order) - cost);
 }
 
 export function amountPaid(order) {
@@ -36,6 +55,7 @@ export function linkedOrderBalances() {
       orderNumber: order.orderNumber,
       person: order.customerName,
       phone: order.phone || "",
+      customerId: order.customerId || "",
       amount: orderTotal(order),
       paid: amountPaid(order),
       balance: balanceOf(order),
@@ -95,12 +115,23 @@ function cleanItems(items) {
     if (!name || !(qty > 0) || !(price > 0)) {
       return { error: "Each item needs a name, a quantity, and a price greater than 0." };
     }
-    clean.push({
+    const line = {
       id: item.id || crypto.randomUUID(),
       name: name.slice(0, 80),
       qty,
       price,
-    });
+    };
+    const productId = String(item.productId || "").trim();
+    if (productId) line.productId = productId.slice(0, 80);
+    const costText = item.unitCost == null ? "" : String(item.unitCost).trim();
+    if (costText !== "") {
+      const costNumber = Number(costText);
+      if (!Number.isFinite(costNumber) || costNumber < 0) {
+        return { error: "Item cost must be 0 or more, or left blank." };
+      }
+      line.unitCost = roundMoney(costNumber);
+    }
+    clean.push(line);
   }
   return { items: clean };
 }
@@ -142,6 +173,13 @@ export function createOrder(input) {
     });
   }
 
+  let customerId = "";
+  if (input.customerId) {
+    const customer = get("customers", input.customerId);
+    if (!customer) return { ok: false, error: "Choose a customer from the list, or add a new one." };
+    customerId = customer.id;
+  }
+
   const order = {
     id: crypto.randomUUID(),
     orderNumber: takeOrderNumber(),
@@ -158,6 +196,7 @@ export function createOrder(input) {
     payments,
     paymentStatus: "Unpaid",
   };
+  if (customerId) order.customerId = customerId;
   order.paymentStatus = paymentStatusFor(order);
   save("orders", order);
   save("workItems", {

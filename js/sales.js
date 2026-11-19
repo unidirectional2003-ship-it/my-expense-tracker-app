@@ -6,6 +6,7 @@ import { isDuplicateSale, saleStatus, monthBusiness, receivableOf } from "./calc
 import { render } from "./render.js";
 import { attachReceipt, pinReceipt } from "./receipt-hook.js";
 import { clearStaged, viewReceiptButton } from "./receipt.js";
+import { accountField } from "./accounts.js";
 
 const saleForm = document.getElementById("sale-form");
 const saleAmountInput = document.getElementById("sale-amount");
@@ -206,6 +207,7 @@ function saveSaleEdit(editForm) {
     return;
   }
   Object.assign(sale, built.sale);
+  if (!built.sale.accountId) delete sale.accountId;
   session.editingSaleId = null;
   saveSales();
   render();
@@ -247,17 +249,18 @@ function readSaleFields(source, amountField, dateField, noteField, cashField, ki
     cashReceived = cash.value;
   }
 
-  return {
-    sale: {
-      amount: kind === "advance" ? cashReceived : earnedAmount,
-      date,
-      note,
-      customer,
-      kind,
-      earnedAmount,
-      cashReceived,
-    },
+  const sale = {
+    amount: kind === "advance" ? cashReceived : earnedAmount,
+    date,
+    note,
+    customer,
+    kind,
+    earnedAmount,
+    cashReceived,
   };
+  const accountSelect = source.elements.account || source.querySelector("[name=account]");
+  if (accountSelect && accountSelect.value) sale.accountId = accountSelect.value;
+  return { sale };
 }
 
 function buildSaleEdit(sale) {
@@ -319,6 +322,7 @@ function buildSaleEdit(sale) {
     editField("Note", note),
     editField("Customer name (optional)", customer),
     editField("Type", kind),
+    editField("Account", accountField(sale.accountId || "")),
     cashWrap,
     error,
     actions

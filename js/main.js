@@ -22,6 +22,13 @@ import { goTo, registerScreen, startRouter } from "./router.js";
 import { initNav } from "./nav.js";
 import { registerPlaceholders } from "./placeholders.js";
 import { registerOrders } from "./orders.js";
+import { registerProducts } from "./products.js";
+import { registerMaterials } from "./materials.js";
+import { seedMaterials } from "./costing.js";
+import { registerDeliveries } from "./deliveries.js";
+import { bindInvoices } from "./invoices.js";
+import { registerQuotes } from "./quotes.js";
+import { registerCustomers } from "./customers.js";
 import { registerUdhaar } from "./udhaar.js";
 import { registerWork } from "./work.js";
 import { bindChecklist, prepareChecklist, renderChecklist, registerChecklistScreen } from "./checklist.js";
@@ -29,6 +36,7 @@ import { registerApprovals, syncAutoApprovals, updateApprovalsBadge } from "./ap
 import { registerBudgets } from "./budgets.js";
 import { registerAlerts, refreshAlerts } from "./alerts.js";
 import { bootLock } from "./lock.js";
+import { registerAccounts, renderAccountBalances } from "./accounts.js";
 const app = document.querySelector(".app");
 const tabs = [...document.querySelectorAll(".tab")];
 const panel = document.getElementById("space-panel");
@@ -47,6 +55,7 @@ setRenderer(() => {
   updateApprovalsBadge();
   syncPanels();
   refreshAlerts();
+  renderAccountBalances();
   if (session.space === "checklist" && document.getElementById("checklist-panel")) {
     renderChecklist();
     syncSpend();
@@ -106,9 +115,14 @@ registerScreen("checklist", {
   },
 });
 registerPlaceholders();
+registerAccounts();
 registerChecklistScreen();
 registerSpendScreens();
 registerOrders();
+registerDeliveries();
+registerQuotes();
+bindInvoices();
+registerCustomers();
 registerUdhaar();
 registerWork();
 registerApprovals();
@@ -150,6 +164,7 @@ bootLock({
     app.inert = false;
     initStorage();
     loadAll();
+    seedMaterials();
     if (applyMonthlyRepeats()) saveSpaces();
     applyMonthlyGroceryDraft();
     syncAutoApprovals();
