@@ -1,0 +1,1187 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Expense Tracker</title>
+    <link rel="icon" href="icon.png" />
+    <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+    <link rel="manifest" href="manifest.json" />
+    <meta name="theme-color" content="#DDEBC8" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="My Expenses" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;600;700;800&display=swap"
+      rel="stylesheet"
+      media="print"
+      onload="this.media='all'"
+    />
+    <noscript>
+      <link
+        href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;600;700;800&display=swap"
+        rel="stylesheet"
+      />
+    </noscript>
+    <link rel="stylesheet" href="style.css" />
+    <style>
+      #boot {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 14px;
+        padding: 24px;
+        text-align: center;
+        background: #fffbf5;
+        color: #3a3a3a;
+        font-family: "Nunito", system-ui, -apple-system, "Segoe UI", sans-serif;
+      }
+      #boot img { width: 84px; height: 84px; border-radius: 20px; }
+      #boot .boot-spin {
+        width: 28px; height: 28px; border-radius: 50%;
+        border: 3px solid #ddebc8; border-top-color: #8fb36a;
+        animation: boot-rot 0.8s linear infinite;
+      }
+      #boot .boot-msg { margin: 0; font-weight: 700; }
+      #boot .boot-detail { margin: 0; max-width: 360px; font-size: 13px; opacity: 0.75; word-break: break-word; }
+      #boot button {
+        font: inherit; font-weight: 700; padding: 10px 18px; border-radius: 12px;
+        border: 0; background: #ddebc8; color: #2f3b22; cursor: pointer;
+      }
+      #boot[data-state="slow"] .boot-spin, #boot[data-state="error"] .boot-spin { display: none; }
+      #boot .boot-actions { display: none; gap: 10px; flex-wrap: wrap; justify-content: center; }
+      #boot[data-state="slow"] .boot-actions, #boot[data-state="error"] .boot-actions { display: flex; }
+      body:has(.lock-screen:not([hidden])) #boot,
+      body:has(.app:not([hidden])) #boot { display: none; }
+      @keyframes boot-rot { to { transform: rotate(360deg); } }
+    </style>
+  </head>
+  <body class="is-locked">
+    <div id="boot" role="status" aria-live="polite">
+      <img src="icon.png" alt="" width="84" height="84" />
+      <div class="boot-spin" aria-hidden="true"></div>
+      <p class="boot-msg" id="boot-msg">Opening your expense tracker…</p>
+      <p class="boot-detail" id="boot-detail" hidden></p>
+      <div class="boot-actions">
+        <button type="button" id="boot-reload">Reload</button>
+        <button type="button" id="boot-clear">Clear cache and reload</button>
+      </div>
+    </div>
+    <header class="topbar">
+      <button
+        type="button"
+        class="menu-button"
+        id="menu-button"
+        aria-expanded="false"
+        aria-controls="main-nav"
+      >
+        Menu
+      </button>
+      <nav class="topnav" id="main-nav" aria-label="Main"></nav>
+    </header>
+    <main class="app" data-space="dashboard" hidden>
+      <div id="screen-root">
+      <div class="screen" data-screen="home" id="screen-home">
+      <header class="intro">
+        <div class="intro-top">
+          <div>
+            <p class="eyebrow">Expense tracker</p>
+            <h1>Home and business, kept apart</h1>
+          </div>
+          <button type="button" class="settings-button" id="open-settings">Settings</button>
+        </div>
+      </header>
+
+      <div class="folder">
+        <div class="tabs" role="tablist" aria-label="Spaces">
+          <button
+            class="tab is-active"
+            id="tab-dashboard"
+            type="button"
+            role="tab"
+            aria-selected="true"
+            aria-controls="space-panel"
+            data-space="dashboard"
+          >
+            Dashboard
+          </button>
+          <button
+            class="tab"
+            id="tab-home"
+            type="button"
+            role="tab"
+            aria-selected="false"
+            aria-controls="space-panel"
+            tabindex="-1"
+            data-space="home"
+          >
+            Home
+          </button>
+          <button
+            class="tab"
+            id="tab-business"
+            type="button"
+            role="tab"
+            aria-selected="false"
+            aria-controls="space-panel"
+            tabindex="-1"
+            data-space="business"
+          >
+            Business
+          </button>
+        </div>
+
+        <div class="sheet" id="space-panel" role="tabpanel" aria-labelledby="tab-dashboard">
+          <section class="dashboard" id="dashboard-panel" aria-labelledby="dashboard-heading">
+            <h2 id="dashboard-heading">Dashboard</h2>
+            <div class="field">
+              <label for="dashboard-month">Month</label>
+              <input id="dashboard-month" name="month" type="month" />
+            </div>
+
+            <section class="briefing" id="home-briefing" aria-label="What happened">
+              <div class="news-columns">
+                <section aria-labelledby="good-news-heading">
+                  <h2 id="good-news-heading">Good news</h2>
+                  <div id="good-news"></div>
+                </section>
+                <section aria-labelledby="bad-news-heading">
+                  <h2 id="bad-news-heading">Bad news</h2>
+                  <div id="bad-news"></div>
+                </section>
+              </div>
+              <h2 id="quick-numbers-heading">Quick numbers</h2>
+              <div class="dash-cards" id="quick-numbers" aria-labelledby="quick-numbers-heading"></div>
+              <button type="button" class="primary" id="explain-month">Explain my month</button>
+              <p class="summary-message" id="month-summary" hidden></p>
+            </section>
+
+            <div class="dash-cards">
+              <article class="dash-card dash-card-left">
+                <p class="summary-label">Personal balance</p>
+                <p class="meta">This month, after home spending and savings</p>
+                <p class="dash-figure" id="dash-personal-balance">Rs 0</p>
+              </article>
+              <article class="dash-card dash-card-profit">
+                <p class="summary-label">Business balance</p>
+                <p class="meta">All time. Cash received minus business expenses</p>
+                <p class="dash-figure" id="dash-business-balance">Rs 0</p>
+              </article>
+              <article class="dash-card dash-card-income">
+                <p class="summary-label">Earned revenue</p>
+                <p class="meta">This month. Customer advances are not included</p>
+                <p class="dash-figure" id="dash-earned">Rs 0</p>
+              </article>
+              <article class="dash-card dash-card-spending">
+                <p class="summary-label">Business expenses</p>
+                <p class="meta">This month</p>
+                <p class="dash-figure" id="dash-expenses">Rs 0</p>
+              </article>
+              <article class="dash-card dash-card-profit">
+                <p class="summary-label">Actual profit</p>
+                <p class="meta">Earned revenue minus business expenses</p>
+                <p class="dash-figure" id="dash-profit">Rs 0</p>
+              </article>
+              <article class="dash-card dash-card-income">
+                <p class="summary-label">Personal savings</p>
+                <p class="meta" id="dash-savings-meta">All time, toward your goal</p>
+                <p class="dash-figure" id="dash-savings">Rs 0</p>
+              </article>
+              <article class="dash-card dash-card-spending">
+                <p class="summary-label">Outstanding payments</p>
+                <p class="meta">Earned sales that are not paid in full</p>
+                <p class="dash-figure" id="dash-outstanding">Rs 0</p>
+              </article>
+              <article class="dash-card dash-card-spending">
+                <p class="summary-label">Upcoming bills</p>
+                <p class="meta" id="dash-upcoming-meta">Nothing due later this month</p>
+                <p class="dash-figure" id="dash-upcoming">Rs 0</p>
+              </article>
+              <article class="dash-card dash-card-income">
+                <p class="summary-label">Cash received</p>
+                <p class="meta">This month, including customer advances</p>
+                <p class="dash-figure" id="dash-cash">Rs 0</p>
+              </article>
+              <article class="dash-card dash-card-spending">
+                <p class="summary-label">Customer advances</p>
+                <p class="meta">This month. Cash in, and not profit</p>
+                <p class="dash-figure" id="dash-advances">Rs 0</p>
+              </article>
+              <article class="dash-card dash-card-spending">
+                <p class="summary-label">Total spending</p>
+                <p class="meta">This month. Home and business expenses</p>
+                <p class="dash-figure" id="dash-spending">Rs 0</p>
+              </article>
+            </div>
+
+            <section class="card" aria-labelledby="outstanding-heading">
+              <h2 id="outstanding-heading">Outstanding customer payments</h2>
+              <p class="meta">Money still owed on earned sales. Update a payment under Business, Income / Sales.</p>
+              <ul class="expense-list" id="outstanding-list"></ul>
+              <p class="empty" id="outstanding-empty">No outstanding customer payments.</p>
+            </section>
+
+            <section class="card" aria-labelledby="dash-bars-heading">
+              <h2 id="dash-bars-heading">Income vs Expenses</h2>
+              <p class="meta">The last 6 months. Income is earned revenue, so advances are left out.</p>
+              <div class="chart-box">
+                <canvas id="dash-bars" aria-label="Income versus expenses for the last 6 months"></canvas>
+              </div>
+              <p class="empty" id="dash-bars-empty" hidden>No income or expenses in the last 6 months.</p>
+            </section>
+
+            <section class="card" aria-labelledby="dash-where-heading">
+              <h2 id="dash-where-heading">Where my money went</h2>
+              <p class="meta">This month’s spending</p>
+              <div class="donut-grid">
+                <div class="donut-block">
+                  <h3>Home and Business</h3>
+                  <div class="chart-box chart-box-donut">
+                    <canvas id="dash-split" aria-label="Spending split between home and business"></canvas>
+                  </div>
+                  <p class="empty" id="dash-split-empty" hidden>No spending this month yet.</p>
+                </div>
+                <div class="donut-block">
+                  <h3>Top categories</h3>
+                  <div class="chart-box chart-box-donut">
+                    <canvas id="dash-categories" aria-label="Top spending categories this month"></canvas>
+                  </div>
+                  <p class="empty" id="dash-categories-empty" hidden>No categories to show for this month.</p>
+                </div>
+              </div>
+            </section>
+
+            <section class="card" aria-labelledby="dash-trend-heading">
+              <h2 id="dash-trend-heading">Revenue and profit trend</h2>
+              <p class="meta">Earned revenue and actual profit for the last 6 months</p>
+              <div class="chart-box">
+                <canvas id="dash-trend" aria-label="Business income trend for the last 6 months"></canvas>
+              </div>
+              <p class="empty" id="dash-trend-empty" hidden>No business income in the last 6 months.</p>
+            </section>
+
+            <section class="card" aria-labelledby="dash-budget-heading">
+              <h2 id="dash-budget-heading">Home budget used</h2>
+              <div class="progress-block">
+                <p class="summary-label" id="dash-budget-label">Budget used</p>
+                <div
+                  class="progress-track"
+                  id="dash-budget-track"
+                  role="progressbar"
+                  aria-valuemin="0"
+                  aria-valuemax="100"
+                  aria-valuenow="0"
+                  aria-valuetext="No budget yet"
+                  aria-labelledby="dash-budget-heading"
+                >
+                  <div class="progress-fill" id="dash-budget-fill"></div>
+                </div>
+              </div>
+              <p class="empty" id="dash-budget-empty" hidden>Set a home budget for this month to see how much you have used.</p>
+            </section>
+
+            <section class="card" aria-labelledby="bills-heading">
+              <h2 id="bills-heading">Bills</h2>
+              <p class="meta">The upcoming total counts unpaid bills still due this month. Marking a bill paid does not add an expense.</p>
+              <form id="bill-form" novalidate>
+                <div class="field">
+                  <label for="bill-name">Name</label>
+                  <input id="bill-name" name="name" type="text" maxlength="80" placeholder="Electricity" required />
+                </div>
+                <div class="field">
+                  <label for="bill-amount">Amount</label>
+                  <input id="bill-amount" name="amount" type="number" inputmode="decimal" min="0.01" step="0.01" placeholder="0.00" required />
+                </div>
+                <div class="field">
+                  <label for="bill-due">Due date</label>
+                  <input id="bill-due" name="due" type="date" required />
+                </div>
+                <div class="field">
+                  <label for="bill-space">Space</label>
+                  <select id="bill-space" name="space">
+                    <option value="home">Home</option>
+                    <option value="business">Business</option>
+                  </select>
+                </div>
+                <p class="form-error" id="bill-error" role="alert" hidden></p>
+                <button type="submit" class="primary">Add bill</button>
+              </form>
+              <ul class="expense-list" id="bill-list"></ul>
+              <p class="empty" id="bill-empty">No bills for this month.</p>
+            </section>
+
+            <section class="card alerts-card" aria-labelledby="dash-alerts-heading" aria-live="polite">
+              <h2 id="dash-alerts-heading">Alerts</h2>
+              <div id="dash-alerts"></div>
+            </section>
+
+            <section class="card" aria-labelledby="dash-activity-heading">
+              <h2 id="dash-activity-heading">Recent activity</h2>
+              <ul class="expense-list" id="dash-activity"></ul>
+              <p class="empty" id="dash-activity-empty" hidden>No activity yet. Home and business entries will show up here.</p>
+            </section>
+          </section>
+
+          <div id="space-content" hidden>
+          <div class="view-tabs" id="business-views" role="tablist" aria-label="Business" hidden>
+            <button class="view-tab is-active" type="button" role="tab" aria-selected="true" data-view="expenses">Expenses</button>
+            <button class="view-tab" type="button" role="tab" aria-selected="false" data-view="sales">Income / Sales</button>
+            <button class="view-tab" type="button" role="tab" aria-selected="false" data-view="profit">Profit</button>
+            <button class="view-tab" type="button" role="tab" aria-selected="false" data-view="withdrawal">For myself</button>
+          </div>
+
+          <div class="view-tabs" id="home-views" role="tablist" aria-label="Home">
+            <button class="view-tab is-active" type="button" role="tab" aria-selected="true" data-home-view="expenses">Expenses</button>
+            <button class="view-tab" type="button" role="tab" aria-selected="false" data-home-view="summary">Summary</button>
+          </div>
+
+          <section class="summary" data-panel="expenses" aria-live="polite">
+            <p class="summary-label" id="total-label">Total spent at home</p>
+            <p class="summary-amount" id="total">Rs 0</p>
+          </section>
+
+          <section class="card" data-panel="expenses" aria-labelledby="add-heading">
+            <h2 id="add-heading">Add an expense</h2>
+            <form id="expense-form" novalidate>
+              <div class="field">
+                <label for="amount">Amount</label>
+                <input
+                  id="amount"
+                  name="amount"
+                  type="number"
+                  inputmode="decimal"
+                  min="0.01"
+                  step="0.01"
+                  placeholder="0.00"
+                  required
+                />
+              </div>
+
+              <div class="field">
+                <label for="category">Category</label>
+                <select id="category" name="category" required>
+                  <option value="">Select a category</option>
+                </select>
+              </div>
+
+              <div class="field">
+                <label for="date">Date</label>
+                <input id="date" name="date" type="date" required />
+              </div>
+
+              <div class="field">
+                <label for="note">Note</label>
+                <input
+                  id="note"
+                  name="note"
+                  type="text"
+                  maxlength="120"
+                  placeholder="What was this for?"
+                  required
+                />
+              </div>
+
+              <div class="field repeat-field">
+                <label class="repeat-label" for="repeats-monthly">
+                  <input id="repeats-monthly" class="repeat-toggle" type="checkbox" />
+                  Repeats every month
+                </label>
+              </div>
+
+              <p class="form-error" id="form-error" role="alert" hidden></p>
+              <div class="add-actions">
+                <button type="submit" class="primary">Add expense</button>
+                <button
+                  type="button"
+                  class="primary scan-receipt"
+                  id="scan-receipt"
+                  aria-haspopup="dialog"
+                  aria-controls="receipt-modal"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <path
+                      fill="currentColor"
+                      d="M9.2 6.2 7.9 8H5.5A1.5 1.5 0 0 0 4 9.5v8A1.5 1.5 0 0 0 5.5 19h13a1.5 1.5 0 0 0 1.5-1.5v-8A1.5 1.5 0 0 0 18.5 8H16l-1.3-1.8H9.2ZM12 16.6a3.3 3.3 0 1 1 0-6.6 3.3 3.3 0 0 1 0 6.6Z"
+                    />
+                  </svg>
+                  Scan receipt
+                </button>
+              </div>
+            </form>
+          </section>
+
+          <section class="card" data-panel="expenses" aria-labelledby="list-heading">
+            <h2 id="list-heading">Expenses</h2>
+            <p class="meta">Open a list from here, or from the menu at the top.</p>
+            <div class="spend-links" id="expense-menu"></div>
+            <div id="spend-root" hidden></div>
+            <div class="filters">
+              <div class="field">
+                <label for="search">Search</label>
+                <input
+                  id="search"
+                  type="search"
+                  placeholder="Search by note"
+                  autocomplete="off"
+                />
+              </div>
+              <div class="field">
+                <label for="category-filter">Category</label>
+                <select id="category-filter">
+                  <option value="">All categories</option>
+                </select>
+              </div>
+            </div>
+            <ul class="expense-list" id="expense-list"></ul>
+            <p class="empty" id="empty-state">No home expenses yet. Add one above.</p>
+          </section>
+
+          <div id="sales-panel" data-panel="sales" hidden>
+            <section class="card" aria-labelledby="sale-heading">
+              <h2 id="sale-heading">Income / Sales</h2>
+              <form id="sale-form" novalidate>
+                <div class="field">
+                  <label for="sale-amount">Amount</label>
+                  <input id="sale-amount" name="amount" type="number" inputmode="decimal" min="0.01" step="0.01" placeholder="0.00" required />
+                </div>
+                <div class="field">
+                  <label for="sale-date">Date</label>
+                  <input id="sale-date" name="date" type="date" required />
+                </div>
+                <div class="field">
+                  <label for="sale-note">Note</label>
+                  <input id="sale-note" name="note" type="text" maxlength="120" placeholder="What was this sale?" required />
+                </div>
+                <div class="field">
+                  <label for="sale-customer">Customer name (optional)</label>
+                  <input id="sale-customer" name="customer" type="text" maxlength="120" placeholder="Customer name" />
+                </div>
+                <div class="field">
+                  <label for="sale-kind">Type</label>
+                  <select id="sale-kind" name="kind">
+                    <option value="earned">Earned sale</option>
+                    <option value="advance">Customer advance</option>
+                  </select>
+                </div>
+                <div class="field" id="sale-cash-field">
+                  <label for="sale-cash">Cash received now</label>
+                  <input id="sale-cash" name="cash" type="number" inputmode="decimal" min="0" step="0.01" placeholder="Leave blank if paid in full" />
+                </div>
+                <p class="meta" id="sale-kind-help">Leave cash blank when the customer paid in full. Enter 0 when nothing has been paid. The unpaid part stays a receivable and the full sale still counts as earned revenue.</p>
+                <p class="form-error" id="sale-error" role="alert" hidden></p>
+                <button type="submit" class="primary">Add sale</button>
+              </form>
+            </section>
+            <section class="card" aria-labelledby="sales-list-heading">
+              <h2 id="sales-list-heading">Sales</h2>
+              <ul class="expense-list" id="sale-list"></ul>
+              <p class="empty" id="sale-empty">No sales yet. Add one above.</p>
+            </section>
+          </div>
+
+          <section class="card home-summary" id="home-summary-panel" aria-labelledby="summary-heading" hidden>
+            <h2 id="summary-heading">Summary</h2>
+            <p class="summary-message" id="summary-message">Set a budget for this month, then I will show how you are doing.</p>
+
+            <div class="field">
+              <label for="summary-month">Month</label>
+              <input id="summary-month" name="month" type="month" />
+            </div>
+
+            <form id="budget-form" novalidate>
+              <div class="field">
+                <label for="budget-amount">Total budget</label>
+                <input
+                  id="budget-amount"
+                  name="budget"
+                  class="budget-amount"
+                  type="number"
+                  inputmode="decimal"
+                  min="0.01"
+                  step="0.01"
+                  placeholder="0.00"
+                />
+              </div>
+              <p class="form-error" id="budget-error" role="alert" hidden></p>
+              <button type="submit" class="primary">Save budget</button>
+            </form>
+
+            <div class="home-stats">
+              <div class="home-stat">
+                <p class="summary-label">Total spent</p>
+                <p class="home-figure" id="summary-spent">Rs 0</p>
+              </div>
+              <div class="home-stat">
+                <p class="summary-label">Money left</p>
+                <p class="home-figure is-prompt" id="summary-left">Set your budget to see what is left</p>
+              </div>
+            </div>
+
+            <div class="progress-block">
+              <p class="summary-label" id="progress-label">Budget used</p>
+              <div
+                class="progress-track"
+                id="budget-progress"
+                role="progressbar"
+                aria-valuemin="0"
+                aria-valuemax="100"
+                aria-valuenow="0"
+                aria-valuetext="No budget yet"
+              >
+                <div class="progress-fill" id="progress-fill"></div>
+              </div>
+            </div>
+
+            <p class="daily-limit" id="daily-limit">Set your budget to see your daily limit.</p>
+
+            <h3 id="category-heading">Spending by category</h3>
+            <ul class="category-list" id="category-breakdown" aria-labelledby="category-heading"></ul>
+            <p class="empty" id="category-empty">No home expenses this month.</p>
+
+            <section class="savings-card" id="savings-section" aria-labelledby="savings-heading">
+              <h2 id="savings-heading">Savings Goal</h2>
+              <form id="savings-form" novalidate>
+                <div class="field">
+                  <label for="savings-name">Goal name</label>
+                  <input
+                    id="savings-name"
+                    name="name"
+                    type="text"
+                    maxlength="80"
+                    placeholder="Eid shopping"
+                    required
+                  />
+                </div>
+                <div class="field">
+                  <label for="savings-target">Target amount</label>
+                  <input
+                    id="savings-target"
+                    name="target"
+                    type="number"
+                    inputmode="decimal"
+                    min="0.01"
+                    step="0.01"
+                    placeholder="0.00"
+                    required
+                  />
+                </div>
+                <p class="form-error" id="savings-error" role="alert" hidden></p>
+                <button type="submit" class="primary">Save goal</button>
+              </form>
+              <p class="summary-label savings-saved-label">Saved</p>
+              <p class="savings-saved" id="savings-saved">Rs 0</p>
+              <p class="meta" id="savings-left">Money left this month: Rs 0</p>
+              <button type="button" class="primary" id="add-to-savings">Add to savings</button>
+              <div
+                class="savings-track"
+                id="savings-track"
+                role="progressbar"
+                aria-valuemin="0"
+                aria-valuemax="100"
+                aria-valuenow="0"
+                aria-labelledby="savings-heading"
+              >
+                <div class="savings-fill" id="savings-fill"></div>
+              </div>
+              <p class="meta" id="savings-progress-text">0% of your goal</p>
+            </section>
+          </section>
+
+          <section class="card" id="profit-panel" data-panel="profit" aria-labelledby="profit-heading" hidden>
+            <h2 id="profit-heading">Profit</h2>
+            <div class="field">
+              <label for="profit-month">Month</label>
+              <input id="profit-month" name="month" type="month" />
+            </div>
+            <div class="profit-stats">
+              <div class="profit-stat">
+                <p class="summary-label">Earned revenue</p>
+                <p class="meta">Work delivered this month</p>
+                <p class="profit-figure" id="profit-earned">Rs 0</p>
+              </div>
+              <div class="profit-stat">
+                <p class="summary-label">Cash received</p>
+                <p class="meta">Includes customer advances</p>
+                <p class="profit-figure" id="profit-cash">Rs 0</p>
+              </div>
+              <div class="profit-stat">
+                <p class="summary-label">Customer advances</p>
+                <p class="meta">Not counted as profit</p>
+                <p class="profit-figure" id="profit-advances">Rs 0</p>
+              </div>
+              <div class="profit-stat">
+                <p class="summary-label">Outstanding</p>
+                <p class="meta">Still unpaid on this month’s sales</p>
+                <p class="profit-figure" id="profit-outstanding">Rs 0</p>
+              </div>
+              <div class="profit-stat">
+                <p class="summary-label">Business expenses</p>
+                <p class="profit-figure" id="profit-expenses">Rs 0</p>
+              </div>
+              <div class="profit-stat">
+                <p class="summary-label">Actual profit</p>
+                <p class="meta">Earned revenue minus business expenses. Money taken for yourself is not subtracted.</p>
+                <p class="profit-figure" id="profit-amount">Rs 0</p>
+              </div>
+              <div class="profit-stat">
+                <p class="summary-label">Taken for myself</p>
+                <p class="meta">Personal income and a business withdrawal. Not a business expense.</p>
+                <p class="profit-figure" id="profit-draw">Rs 0</p>
+              </div>
+            </div>
+          </section>
+
+          <section class="card" id="withdrawal-panel" data-panel="withdrawal" aria-labelledby="withdrawal-heading" hidden>
+            <h2 id="withdrawal-heading">Take money for myself</h2>
+            <p class="meta">
+              This counts as personal income and as a withdrawal from the business. It is not saved as a sale or as a business expense, so profit stays earned revenue minus business expenses.
+            </p>
+            <form id="withdrawal-form" novalidate>
+              <div class="field">
+                <label for="withdrawal-amount">Amount</label>
+                <input id="withdrawal-amount" name="amount" type="number" inputmode="decimal" min="0.01" step="0.01" placeholder="0.00" required />
+              </div>
+              <div class="field">
+                <label for="withdrawal-date">Date</label>
+                <input id="withdrawal-date" name="date" type="date" required />
+              </div>
+              <div class="field">
+                <label for="withdrawal-note">Note</label>
+                <input id="withdrawal-note" name="note" type="text" maxlength="120" placeholder="For myself" />
+              </div>
+              <p class="form-error" id="withdrawal-error" role="alert" hidden></p>
+              <button type="submit" class="primary">Take money for myself</button>
+            </form>
+            <ul class="expense-list" id="withdrawal-list"></ul>
+            <p class="empty" id="withdrawal-empty">You have not taken money for yourself yet.</p>
+          </section>
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-modal" id="settings-modal" hidden>
+        <button type="button" class="settings-backdrop" id="settings-backdrop" aria-label="Close settings"></button>
+        <div
+          class="settings-dialog"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="settings-title"
+          tabindex="-1"
+        >
+          <h2 id="settings-title">Settings</h2>
+          <p class="lock-note" id="settings-note">
+            This protects the app on this device. Your expenses, sales, bills, and photos are stored on this device.
+            They are not kept in an account or in the cloud.
+          </p>
+
+          <section class="settings-block" aria-labelledby="password-heading">
+            <h3 id="password-heading">Change password</h3>
+            <form id="change-password-form" novalidate>
+              <div class="field">
+                <label for="current-password">Current password</label>
+                <input id="current-password" name="current" type="password" autocomplete="current-password" required />
+              </div>
+              <div class="field">
+                <label for="new-password">New password</label>
+                <input id="new-password" name="next" type="password" autocomplete="new-password" minlength="6" required />
+              </div>
+              <div class="field">
+                <label for="confirm-password">Confirm new password</label>
+                <input id="confirm-password" name="confirm" type="password" autocomplete="new-password" minlength="6" required />
+              </div>
+              <p class="form-error" id="change-password-error" role="alert" hidden></p>
+              <p class="meta" id="change-password-ok" role="status" hidden></p>
+              <button type="submit" class="primary">Save new password</button>
+            </form>
+          </section>
+
+          <section class="settings-block" aria-labelledby="biometric-heading">
+            <h3 id="biometric-heading">Face ID / Fingerprint</h3>
+            <p class="meta" id="biometric-unsupported" hidden>
+              Face ID and fingerprint are not available in this browser on this device. Your password still unlocks the app.
+            </p>
+            <label class="repeat-label" id="biometric-row" for="biometric-toggle" hidden>
+              <input id="biometric-toggle" class="repeat-toggle" type="checkbox" />
+              Use Face ID / Fingerprint to unlock
+            </label>
+            <p class="form-error" id="biometric-error" role="alert" hidden></p>
+          </section>
+
+          <section class="settings-block" aria-labelledby="timeout-heading">
+            <h3 id="timeout-heading">Lock when you leave</h3>
+            <p class="meta">Opening the app always asks for the password. This is how soon it locks after you leave it in the background.</p>
+            <div class="field">
+              <label for="lock-timeout">Background lock</label>
+              <select id="lock-timeout">
+                <option value="1">1 minute</option>
+                <option value="2">2 minutes</option>
+                <option value="5">5 minutes</option>
+                <option value="0">Never</option>
+              </select>
+            </div>
+            <button type="button" class="edit-cancel settings-lock-now" id="lock-now">Lock now</button>
+          </section>
+
+          <section class="settings-block" aria-labelledby="business-profile-heading">
+            <h3 id="business-profile-heading">Business profile</h3>
+            <p class="meta">Shop name, logo, phone, address, and account details appear on invoices. The footer note is printed at the bottom.</p>
+            <form id="business-profile-form" novalidate>
+              <div class="field">
+                <label for="profile-shop">Shop name</label>
+                <input id="profile-shop" name="shopName" type="text" maxlength="80" placeholder="Shop name" />
+              </div>
+              <div class="field">
+                <label for="profile-logo">Logo</label>
+                <div class="logo-row">
+                  <img id="profile-logo-preview" class="logo-preview" alt="" hidden />
+                  <input id="profile-logo" name="logo" type="file" accept="image/*" />
+                </div>
+                <button type="button" class="edit-cancel" id="profile-logo-clear" hidden>Remove logo</button>
+              </div>
+              <div class="field">
+                <label for="profile-phone">Phone</label>
+                <input id="profile-phone" name="phone" type="tel" maxlength="40" placeholder="03xx" />
+              </div>
+              <div class="field">
+                <label for="profile-address">Address</label>
+                <textarea id="profile-address" name="address" maxlength="240" rows="2" placeholder="Shop address"></textarea>
+              </div>
+              <div class="field">
+                <label for="profile-bank">Bank account</label>
+                <textarea id="profile-bank" name="bank" maxlength="240" rows="2" placeholder="Bank, account title, account number"></textarea>
+              </div>
+              <div class="field">
+                <label for="profile-easypaisa">Easypaisa</label>
+                <input id="profile-easypaisa" name="easypaisa" type="text" maxlength="80" placeholder="Easypaisa account" />
+              </div>
+              <div class="field">
+                <label for="profile-jazzcash">JazzCash</label>
+                <input id="profile-jazzcash" name="jazzcash" type="text" maxlength="80" placeholder="JazzCash account" />
+              </div>
+              <div class="field">
+                <label for="profile-footer">Footer note</label>
+                <textarea id="profile-footer" name="footer" maxlength="240" rows="2" placeholder="Thank you for your order"></textarea>
+              </div>
+              <p class="form-error" id="profile-error" role="alert" hidden></p>
+              <p class="meta" id="profile-ok" role="status" hidden></p>
+              <button type="submit" class="primary">Save business profile</button>
+            </form>
+          </section>
+
+          <section class="settings-block" aria-labelledby="backup-heading">
+            <h3 id="backup-heading">Backup</h3>
+            <p class="meta">
+              A backup is a JSON file of the data on this device. Importing a backup replaces that data.
+              Your password stays as it is. Keep a backup somewhere safe in case you forget the password.
+            </p>
+            <div class="add-actions">
+              <button type="button" class="primary" id="export-backup">Export backup</button>
+              <label class="edit-cancel import-label" for="import-backup">Import backup</label>
+            </div>
+            <input id="import-backup" class="receipt-file" type="file" accept="application/json,.json" />
+            <div id="import-confirm" hidden>
+              <p class="meta" id="import-confirm-text">Replace the data on this device with this backup?</p>
+              <div class="add-actions">
+                <button type="button" class="primary" id="import-replace">Replace data</button>
+                <button type="button" class="edit-cancel" id="import-cancel">Cancel</button>
+              </div>
+            </div>
+            <p class="form-error" id="backup-error" role="alert" hidden></p>
+            <p class="meta" id="backup-ok" role="status" hidden></p>
+          </section>
+
+          <section class="settings-block" aria-labelledby="whatsapp-heading">
+            <h3 id="whatsapp-heading">WhatsApp messages</h3>
+            <p class="meta">
+              These are the ready messages for Message on WhatsApp. You can use {name}, {balance}, and {orders}.
+              A number written as 03xx is opened as +92.
+            </p>
+            <form id="whatsapp-templates-form">
+              <div class="field">
+                <label for="wa-order-ready">Order ready</label>
+                <textarea id="wa-order-ready" name="orderReady" rows="3" maxlength="500"></textarea>
+              </div>
+              <div class="field">
+                <label for="wa-payment-reminder">Payment reminder</label>
+                <textarea id="wa-payment-reminder" name="paymentReminder" rows="3" maxlength="500"></textarea>
+              </div>
+              <p class="meta" id="wa-templates-ok" role="status" hidden></p>
+              <button type="submit" class="primary">Save messages</button>
+            </form>
+          </section>
+
+          <button type="button" class="edit-cancel" id="settings-close">Close</button>
+        </div>
+      </div>
+
+      <div class="receipt-modal" id="receipt-modal" hidden>
+        <button type="button" class="receipt-backdrop" data-receipt-close aria-label="Close"></button>
+        <div
+          class="receipt-dialog"
+          id="receipt-dialog"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="receipt-title"
+          tabindex="-1"
+        >
+          <h2 id="receipt-title">Scan receipt</h2>
+
+          <div class="receipt-choices" id="receipt-step-choose" data-receipt-step="choose">
+            <p class="meta">Take a photo of a paper receipt, or choose one from your gallery.</p>
+            <label class="primary receipt-choice" for="receipt-camera-input">
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path
+                  fill="currentColor"
+                  d="M9.2 6.2 7.9 8H5.5A1.5 1.5 0 0 0 4 9.5v8A1.5 1.5 0 0 0 5.5 19h13a1.5 1.5 0 0 0 1.5-1.5v-8A1.5 1.5 0 0 0 18.5 8H16l-1.3-1.8H9.2ZM12 16.6a3.3 3.3 0 1 1 0-6.6 3.3 3.3 0 0 1 0 6.6Z"
+                />
+              </svg>
+              Take Photo
+            </label>
+            <label class="primary receipt-choice" for="receipt-gallery-input">
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path
+                  fill="currentColor"
+                  d="M6 5.5h12A1.5 1.5 0 0 1 19.5 7v10a1.5 1.5 0 0 1-1.5 1.5H6A1.5 1.5 0 0 1 4.5 17V7A1.5 1.5 0 0 1 6 5.5Zm0 1.8v8.1l2.7-2.6a1 1 0 0 1 1.4 0L12.4 15l1.6-1.5a1 1 0 0 1 1.4 0l1.6 1.5V7.3H6Zm2.2 2.1a1.2 1.2 0 1 0 0-2.4 1.2 1.2 0 0 0 0 2.4Z"
+                />
+              </svg>
+              Upload from Gallery
+            </label>
+            <p class="meta">If the camera does not open, allow camera access in your browser settings, or upload a photo from your gallery.</p>
+            <p class="form-error" id="receipt-choose-error" role="alert" hidden></p>
+            <p class="meta" id="receipt-choose-status" hidden>Preparing photo...</p>
+            <button type="button" class="edit-cancel" data-receipt-close>Cancel</button>
+            <input
+              id="receipt-camera-input"
+              class="receipt-file"
+              type="file"
+              accept="image/*"
+              capture="environment"
+            />
+            <input id="receipt-gallery-input" class="receipt-file" type="file" accept="image/*" />
+          </div>
+
+          <div id="receipt-step-preview" data-receipt-step="preview" hidden>
+            <img id="receipt-preview" class="receipt-preview" alt="Receipt preview" />
+            <div class="add-actions">
+              <button type="button" class="primary" id="receipt-scan">Scan</button>
+              <button type="button" class="edit-cancel" id="receipt-preview-cancel">Cancel</button>
+            </div>
+          </div>
+
+          <div class="receipt-scanning" id="receipt-step-scanning" data-receipt-step="scanning" hidden>
+            <div class="receipt-spinner" aria-hidden="true"></div>
+            <p class="summary-label" id="receipt-progress" role="status" aria-live="polite">Scanning... 0%</p>
+            <button type="button" class="edit-cancel" id="receipt-scan-cancel">Cancel</button>
+          </div>
+
+          <form id="receipt-form" data-receipt-step="confirm" novalidate hidden>
+            <img id="receipt-confirm-preview" class="receipt-preview" alt="Receipt preview" />
+            <p class="form-error" id="receipt-amount-hint" role="status" hidden></p>
+            <div class="field">
+              <label for="receipt-amount">Amount</label>
+              <input
+                id="receipt-amount"
+                name="amount"
+                type="number"
+                inputmode="decimal"
+                min="0.01"
+                step="0.01"
+                placeholder="0.00"
+                autocomplete="off"
+                required
+              />
+            </div>
+            <div class="field">
+              <label for="receipt-date">Date</label>
+              <input id="receipt-date" name="date" type="date" required />
+            </div>
+            <div class="field">
+              <label for="receipt-merchant">Merchant</label>
+              <input
+                id="receipt-merchant"
+                name="merchant"
+                type="text"
+                maxlength="80"
+                placeholder="Store name"
+                autocomplete="off"
+              />
+            </div>
+            <div class="field">
+              <label for="receipt-category">Category</label>
+              <select id="receipt-category" name="category" required>
+                <option value="">Select a category</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="receipt-note">Notes</label>
+              <input
+                id="receipt-note"
+                name="note"
+                type="text"
+                maxlength="120"
+                placeholder="What was this for?"
+                autocomplete="off"
+                required
+              />
+            </div>
+            <div class="field">
+              <label for="receipt-space">Space</label>
+              <select id="receipt-space" name="space" required>
+                <option value="home">Home</option>
+                <option value="business">Business</option>
+              </select>
+            </div>
+            <p class="form-error" id="receipt-form-error" role="alert" hidden></p>
+            <button type="button" class="edit-cancel" id="receipt-save-without" hidden>Save without photo</button>
+            <div class="add-actions">
+              <button type="submit" class="primary">Save</button>
+              <button type="button" class="edit-cancel" id="receipt-confirm-cancel">Cancel</button>
+            </div>
+          </form>
+
+          <div id="receipt-step-view" data-receipt-step="view" hidden>
+            <img id="receipt-full" class="receipt-full" alt="Receipt photo" />
+            <button type="button" class="primary" data-receipt-close>Close</button>
+          </div>
+        </div>
+      </div>
+      </div>
+      <section class="screen checklist-screen" id="checklist-panel" data-screen="checklist" hidden>
+        <header class="intro">
+          <p class="eyebrow">Every month</p>
+          <h1 id="checklist-heading">Checklist</h1>
+        </header>
+        <div class="sheet" id="checklist-list-view">
+          <div class="field">
+            <label for="checklist-month">Month</label>
+            <input id="checklist-month" name="month" type="month" />
+          </div>
+          <div class="progress-block">
+            <p class="summary-label" id="checklist-progress-label">0 of 0 done</p>
+            <div
+              class="progress-track"
+              id="checklist-progress-track"
+              role="progressbar"
+              aria-valuemin="0"
+              aria-valuemax="0"
+              aria-valuenow="0"
+              aria-valuetext="0 of 0 done"
+              aria-labelledby="checklist-progress-label"
+            >
+              <div class="progress-fill" id="checklist-progress-fill"></div>
+            </div>
+          </div>
+          <p class="meta" id="checklist-history-note" hidden>This month is already saved. Switch back to the current month to add, edit, or reorder items.</p>
+          <form id="checklist-pay-form" class="checklist-pay" hidden novalidate>
+            <p class="edit-title" id="checklist-pay-title">Amount paid</p>
+            <div class="field">
+              <label for="checklist-pay-amount">Paid amount</label>
+              <input id="checklist-pay-amount" name="amount" type="number" inputmode="decimal" min="0.01" step="0.01" placeholder="0.00" required />
+            </div>
+            <p class="form-error" id="checklist-pay-error" role="alert" hidden></p>
+            <div class="edit-actions">
+              <button type="submit" class="primary">Save payment</button>
+              <button type="button" class="edit-cancel" id="checklist-pay-cancel">Cancel</button>
+            </div>
+          </form>
+          <ul class="checklist-list" id="checklist-list"></ul>
+          <p class="empty" id="checklist-empty" hidden>No checklist items yet. Add one below.</p>
+          <form id="checklist-manage" novalidate>
+            <h2>Add an item</h2>
+            <div class="field">
+              <label for="checklist-name">Name</label>
+              <input id="checklist-name" name="name" type="text" maxlength="80" required />
+            </div>
+            <div class="field">
+              <label for="checklist-day">Due day</label>
+              <input id="checklist-day" name="day" type="number" min="1" max="31" step="1" value="1" required />
+            </div>
+            <div class="field">
+              <label for="checklist-expected">Expected amount</label>
+              <input id="checklist-expected" name="expected" type="number" inputmode="decimal" min="0" step="0.01" value="0" required />
+            </div>
+            <div class="field">
+              <label for="checklist-category">Category</label>
+              <select id="checklist-category" name="category"></select>
+            </div>
+            <p class="form-error" id="checklist-manage-error" role="alert" hidden></p>
+            <button type="submit" class="primary">Add item</button>
+          </form>
+        </div>
+        <div id="checklist-detail-view" hidden></div>
+        <div id="checklist-groceries-view" hidden></div>
+      </section>
+      </div>
+    </main>
+    <nav class="tabbar" id="tabbar" aria-label="Primary"></nav>
+
+    <div class="lock-screen" id="lock-screen" hidden>
+      <div class="lock-card" role="dialog" aria-modal="true" aria-labelledby="lock-title">
+        <p class="eyebrow">Expense tracker</p>
+        <h1 id="lock-title">App locked</h1>
+        <p class="meta" id="lock-help">Enter your password to open the app.</p>
+
+        <form id="setup-form" novalidate hidden>
+          <div class="field">
+            <label for="setup-password">Password</label>
+            <input id="setup-password" name="password" type="password" autocomplete="new-password" minlength="6" required />
+          </div>
+          <div class="field">
+            <label for="setup-confirm">Confirm password</label>
+            <input id="setup-confirm" name="confirm" type="password" autocomplete="new-password" minlength="6" required />
+          </div>
+          <p class="form-error" id="setup-error" role="alert" hidden></p>
+          <button type="submit" class="primary" id="setup-submit">Save password</button>
+        </form>
+
+        <form id="unlock-form" novalidate hidden>
+          <div class="field">
+            <label for="unlock-password">Password</label>
+            <input id="unlock-password" name="password" type="password" autocomplete="current-password" required />
+          </div>
+          <p class="form-error" id="unlock-error" role="alert" hidden></p>
+          <button type="submit" class="primary" id="unlock-submit">Unlock</button>
+          <button type="button" class="edit-cancel" id="unlock-biometric" hidden>Unlock with Face ID / Fingerprint</button>
+          <button type="button" class="text-button" id="forgot-open">Forgot password?</button>
+        </form>
+
+        <form id="forgot-form" novalidate hidden>
+          <p class="meta" id="forgot-copy">
+            Resetting does not show your expenses, sales, or photos. It erases the data saved in this app on this device.
+            That includes expenses, sales, bills, budgets, savings, and receipt photos.
+            Your password cannot be recovered. If you have an exported backup, you can import it after you create a new password.
+            If you do not have a backup, this data is gone.
+          </p>
+          <div class="field">
+            <label for="forgot-phrase">Type ERASE to confirm</label>
+            <input id="forgot-phrase" name="phrase" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" />
+          </div>
+          <p class="form-error" id="forgot-error" role="alert" hidden></p>
+          <button type="submit" class="danger-button" id="forgot-erase">Erase data and reset password</button>
+          <button type="button" class="edit-cancel" id="forgot-back">Back</button>
+        </form>
+      </div>
+    </div>
+
+    <script>
+      (function () {
+        var boot = document.getElementById("boot");
+        if (!boot) return;
+        var msg = document.getElementById("boot-msg");
+        var detail = document.getElementById("boot-detail");
+        function done() {
+          return !document.getElementById("boot");
+        }
+        function show(state, text, info) {
+          if (done()) return;
+          boot.setAttribute("data-state", state);
+          msg.textContent = text;
+          if (info) { detail.textContent = info; detail.hidden = false; }
+        }
+        window.__bootFail = function (text, info) { show("error", text, info); };
+        var slowTimer = setTimeout(function () {
+          show("slow", "This is taking longer than usual.", "Your connection may be slow. You can wait, or reload.");
+        }, 6000);
+        function finish() {
+          var visible = document.querySelector(".lock-screen:not([hidden]), .app:not([hidden])");
+          if (visible && boot.parentNode) {
+            clearTimeout(slowTimer);
+            boot.parentNode.removeChild(boot);
+            return true;
+          }
+          return false;
+        }
+        new MutationObserver(function (m, o) { if (finish()) o.disconnect(); })
+          .observe(document.documentElement, { subtree: true, attributes: true, attributeFilter: ["hidden"] });
+        window.addEventListener("error", function (e) {
+          if (e && e.message) {
+            var where = e.filename ? " (" + e.filename.split("/").pop() + ":" + e.lineno + ")" : "";
+            show("error", "The app hit an error while opening.", e.message + where);
+          }
+        });
+        window.addEventListener("unhandledrejection", function (e) {
+          show("error", "The app hit an error while opening.", String(e && e.reason ? (e.reason.message || e.reason) : "Unknown error"));
+        });
+        // Check every file the app imports, so a missing or blocked file is named on screen.
+        window.__bootDiagnose = async function () {
+          show("error", "Checking the app files…", "");
+          var seen = {}, queue = [new URL("js/main.js", location.href).href], bad = [], n = 0;
+          while (queue.length && n < 100) {
+            var u = queue.shift();
+            if (seen[u]) continue;
+            seen[u] = 1; n++;
+            try {
+              var r = await fetch(u, { cache: "no-store" });
+              if (!r.ok) { bad.push(u.split("/").slice(-2).join("/") + " (" + r.status + ")"); continue; }
+              var t = await r.text(), re = /(?:from\s*|import\s*\(?\s*)["'](\.[^"']+)["']/g, m;
+              while ((m = re.exec(t))) queue.push(new URL(m[1], u).href);
+            } catch (err) {
+              bad.push(u.split("/").slice(-2).join("/") + " (could not download)");
+            }
+          }
+          if (bad.length) {
+            show("error", "These app files are missing or blocked:", bad.join(", "));
+            return;
+          }
+          try {
+            await import("./js/main.js");
+            show("error", "All " + n + " app files were found, but the app still did not start.", "Please send a screenshot of this screen.");
+          } catch (err) {
+            show("error", "All " + n + " app files were found, but one has an error:", String(err && err.message ? err.message : err));
+          }
+        };
+        // Remove the old offline cache from earlier versions, once.
+        try {
+          if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations) {
+            navigator.serviceWorker.getRegistrations().then(function (regs) {
+              if (!regs.length) return;
+              return Promise.all(regs.map(function (x) { return x.unregister(); }))
+                .then(function () { return window.caches ? caches.keys() : []; })
+                .then(function (keys) { return Promise.all(keys.map(function (k) { return caches.delete(k); })); })
+                .then(function () {
+                  if (!sessionStorage.getItem("sw-cleaned")) {
+                    sessionStorage.setItem("sw-cleaned", "1");
+                    location.reload();
+                  }
+                });
+            }).catch(function () {});
+          }
+        } catch (err) {}
+        document.getElementById("boot-reload").addEventListener("click", function () { location.reload(); });
+        document.getElementById("boot-clear").addEventListener("click", function () {
+          var jobs = [];
+          if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations) {
+            jobs.push(navigator.serviceWorker.getRegistrations().then(function (r) {
+              return Promise.all(r.map(function (x) { return x.unregister(); }));
+            }));
+          }
+          if (window.caches && caches.keys) {
+            jobs.push(caches.keys().then(function (k) { return Promise.all(k.map(function (n) { return caches.delete(n); })); }));
+          }
+          Promise.all(jobs).catch(function () {}).then(function () { location.reload(); });
+        });
+      })();
+    </script>
+    <!-- Charts load before the app (small, cached after the first visit). -->
+    <script
+      defer
+      src="https://cdn.jsdelivr.net/npm/chart.js@4.4.6/dist/chart.umd.min.js"
+    ></script>
+    <!-- Excel export library is big and only needed on export, so it must never block opening the app. -->
+    <script
+      async
+      src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"
+    ></script>
+    <script
+      type="module"
+      src="js/main.js"
+      onerror="window.__bootDiagnose &amp;&amp; window.__bootDiagnose()"
+    ></script>
+  </body>
+</html>
