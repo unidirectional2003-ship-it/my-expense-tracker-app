@@ -16,10 +16,64 @@
     <link
       href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;600;700;800&display=swap"
       rel="stylesheet"
+      media="print"
+      onload="this.media='all'"
     />
+    <noscript>
+      <link
+        href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;600;700;800&display=swap"
+        rel="stylesheet"
+      />
+    </noscript>
     <link rel="stylesheet" href="style.css" />
+    <link rel="modulepreload" href="js/main.js" />
+    <style>
+      #boot {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 14px;
+        padding: 24px;
+        text-align: center;
+        background: #fffbf5;
+        color: #3a3a3a;
+        font-family: "Nunito", system-ui, -apple-system, "Segoe UI", sans-serif;
+      }
+      #boot img { width: 84px; height: 84px; border-radius: 20px; }
+      #boot .boot-spin {
+        width: 28px; height: 28px; border-radius: 50%;
+        border: 3px solid #ddebc8; border-top-color: #8fb36a;
+        animation: boot-rot 0.8s linear infinite;
+      }
+      #boot .boot-msg { margin: 0; font-weight: 700; }
+      #boot .boot-detail { margin: 0; max-width: 360px; font-size: 13px; opacity: 0.75; word-break: break-word; }
+      #boot button {
+        font: inherit; font-weight: 700; padding: 10px 18px; border-radius: 12px;
+        border: 0; background: #ddebc8; color: #2f3b22; cursor: pointer;
+      }
+      #boot[data-state="slow"] .boot-spin, #boot[data-state="error"] .boot-spin { display: none; }
+      #boot .boot-actions { display: none; gap: 10px; flex-wrap: wrap; justify-content: center; }
+      #boot[data-state="slow"] .boot-actions, #boot[data-state="error"] .boot-actions { display: flex; }
+      body:has(.lock-screen:not([hidden])) #boot,
+      body:has(.app:not([hidden])) #boot { display: none; }
+      @keyframes boot-rot { to { transform: rotate(360deg); } }
+    </style>
   </head>
   <body class="is-locked">
+    <div id="boot" role="status" aria-live="polite">
+      <img src="icon.png" alt="" width="84" height="84" />
+      <div class="boot-spin" aria-hidden="true"></div>
+      <p class="boot-msg" id="boot-msg">Opening your expense tracker…</p>
+      <p class="boot-detail" id="boot-detail" hidden></p>
+      <div class="boot-actions">
+        <button type="button" id="boot-reload">Reload</button>
+        <button type="button" id="boot-clear">Clear cache and reload</button>
+      </div>
+    </div>
     <header class="topbar">
       <button
         type="button"
@@ -1016,8 +1070,78 @@
       </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.6/dist/chart.umd.min.js"></script>
-    <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
-    <script type="module" src="js/main.js"></script>
+    <script>
+      (function () {
+        var boot = document.getElementById("boot");
+        if (!boot) return;
+        var msg = document.getElementById("boot-msg");
+        var detail = document.getElementById("boot-detail");
+        function done() {
+          return !document.getElementById("boot");
+        }
+        function show(state, text, info) {
+          if (done()) return;
+          boot.setAttribute("data-state", state);
+          msg.textContent = text;
+          if (info) { detail.textContent = info; detail.hidden = false; }
+        }
+        window.__bootFail = function (text, info) { show("error", text, info); };
+        var slowTimer = setTimeout(function () {
+          show("slow", "This is taking longer than usual.", "Your connection may be slow. You can wait, or reload.");
+        }, 6000);
+        function finish() {
+          var visible = document.querySelector(".lock-screen:not([hidden]), .app:not([hidden])");
+          if (visible && boot.parentNode) {
+            clearTimeout(slowTimer);
+            boot.parentNode.removeChild(boot);
+            return true;
+          }
+          return false;
+        }
+        new MutationObserver(function (m, o) { if (finish()) o.disconnect(); })
+          .observe(document.documentElement, { subtree: true, attributes: true, attributeFilter: ["hidden"] });
+        window.addEventListener("error", function (e) {
+          if (e && e.message) show("error", "The app hit an error while opening.", e.message);
+        });
+        window.addEventListener("unhandledrejection", function (e) {
+          show("error", "The app hit an error while opening.", String(e && e.reason ? (e.reason.message || e.reason) : "Unknown error"));
+        });
+        document.getElementById("boot-reload").addEventListener("click", function () { location.reload(); });
+        document.getElementById("boot-clear").addEventListener("click", function () {
+          var jobs = [];
+          if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations) {
+            jobs.push(navigator.serviceWorker.getRegistrations().then(function (r) {
+              return Promise.all(r.map(function (x) { return x.unregister(); }));
+            }));
+          }
+          if (window.caches && caches.keys) {
+            jobs.push(caches.keys().then(function (k) { return Promise.all(k.map(function (n) { return caches.delete(n); })); }));
+          }
+          Promise.all(jobs).catch(function () {}).then(function () { location.reload(); });
+        });
+      })();
+    </script>
+    <!-- Charts load before the app (small, cached after the first visit). -->
+    <script
+      defer
+      src="https://cdn.jsdelivr.net/npm/chart.js@4.4.6/dist/chart.umd.min.js"
+    ></script>
+    <!-- Excel export library is big and only needed on export, so it must never block opening the app. -->
+    <script
+      async
+      src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"
+    ></script>
+    <script
+      type="module"
+      src="js/main.js"
+      onerror="window.__bootFail &amp;&amp; window.__bootFail('The app files could not be loaded.', 'js/main.js is missing or blocked. Check that the js folder was pushed to GitHub.')"
+    ></script>
+    <script>
+      if ("serviceWorker" in navigator && location.protocol === "https:") {
+        window.addEventListener("load", function () {
+          navigator.serviceWorker.register("sw.js").catch(function () {});
+        });
+      }
+    </script>
   </body>
 </html>
