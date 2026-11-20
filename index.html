@@ -25,7 +25,7 @@ main{padding:74px 14px 100px;max-width:680px;margin:0 auto}
 .dh b{font-size:19px;display:block}.dh span{font-size:13px;color:var(--mut)}
 .sec{padding:9px 18px;font-size:13px;font-weight:800;margin-top:10px}
 .sec.h{background:var(--pk)}.sec.b{background:var(--bl)}.sec.t{background:var(--pi)}
-.nav{display:flex;align-items:center;gap:12px;width:100%;padding:12px 18px;border:0;background:none;text-align:left;font-size:15.5px;cursor:pointer}
+.nav{display:flex;align-items:center;gap:12px;width:100%;padding:13px 18px;border:0;background:none;text-align:left;font-size:15.5px;cursor:pointer}
 .nav .ic{width:24px;text-align:center;flex:none}
 .nav .nm{flex:1;min-width:0}
 .nav.act{background:var(--ye);font-weight:700}
@@ -79,7 +79,7 @@ input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid v
 @keyframes fl{50%{transform:translateY(-24px) scale(1.07)}}
 @media(prefers-reduced-motion:reduce){#auth .bl{animation:none}}
 .box{position:relative;z-index:1}
-.bis{font-size:17px;color:var(--mut);margin-bottom:10px}
+.bis{margin-bottom:22px;font-size:17px;color:var(--mut);margin-bottom:10px}
 .lg{width:112px;height:112px;border-radius:50%;margin:0 auto 10px;display:block;object-fit:cover;background:#fff;box-shadow:0 8px 24px rgba(120,110,150,.28);border:4px solid #fff}
 .lgf{display:flex;align-items:center;justify-content:center;font-size:30px;font-weight:800;background:linear-gradient(90deg,var(--pk2) 50%,var(--bl2) 50%)}
 .sub{color:var(--mut);font-size:14.5px;margin:-8px 4px 16px}
@@ -97,7 +97,7 @@ input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid v
 @media(prefers-reduced-motion:reduce){#auth .fx{animation:none}}
 .arch{width:190px;height:212px;margin:4px auto 10px;border:2px solid #d9b25f;border-radius:95px 95px 18px 18px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.7);box-shadow:inset 0 0 0 5px #fff,inset 0 0 0 6px #ecd49b,0 8px 22px rgba(200,150,120,.2)}
 #auth .lg{margin:0;width:128px;height:128px;border:3px solid #fff}
-#auth .lgf{background:none;box-shadow:none;border:0;width:auto;height:auto;font-size:46px;letter-spacing:4px}
+#auth .lgf{background:none;box-shadow:none;border:0;width:auto;height:auto;font-family:'Great Vibes',cursive;font-size:44px;color:#a4475c;font-weight:400}
 .sc{font-family:'Great Vibes',cursive;font-size:38px!important;font-weight:400;color:#a4475c;line-height:1.1;margin:0!important}
 .orn{display:flex;align-items:center;justify-content:center;gap:10px;margin:4px 0 2px;color:#d9b25f}
 .orn i{display:block;width:70px;height:1.5px;background:linear-gradient(90deg,transparent,#d9b25f)}
@@ -118,19 +118,20 @@ input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid v
 <div class="ov" id="ov"></div>
 <aside class="drawer" id="dr"></aside>
 <main id="v"></main>
-<button class="fab" id="fab" onclick="openScan()">📷 Scan Bill</button>
+<button class="fab" id="fab" onclick="openScan()"> Scan Bill</button>
 <div class="mod" id="mod"><div class="sheet" id="sheet"></div></div>
 <script>
-var D={tx:[],budget:0,wa:'',biz:'My Business',pw:'',fails:[],fc:0,lock:0,pend:[],al:{},gen:'',
+var D={tx:[],budget:0,wa:'',biz:'My Business',pw:'',fails:[],fc:0,lock:0,alertWA:{phone:'',key:''},pend:[],al:{},gen:'',
 msgs:{confirm:'Assalam o Alaikum {name}! Your order for {item} is confirmed. Total: Rs {total}. Advance received: Rs {advance}. Balance: Rs {balance}. Thank you! - {biz}',ready:'Assalam o Alaikum {name}! Your order for {item} is ready. Balance to pay: Rs {balance}. - {biz}',remind:'Assalam o Alaikum {name}, a gentle reminder: Rs {balance} is pending for {item}. Please pay when convenient. Thank you! - {biz}'},
-prof:{name:'',phone:'',photo:''},L:{cust:[],orders:[],check:[],groc:[],goals:[],bc:[],cost:[],inv:[],udh:[],invo:[]}};
+prof:{name:'',phone:'',photo:''},L:{rcpt:[],cust:[],orders:[],check:[],groc:[],goals:[],bc:[],cost:[],inv:[],udh:[],invo:[]}};
 function copy(o){return JSON.parse(JSON.stringify(o))}
 var S=load();
 function load(){var s=copy(D);try{var x=JSON.parse(localStorage.getItem('met3')||'null');if(!x){var o=JSON.parse(localStorage.getItem('met2')||'null');if(o){x={tx:o.tx,budget:o.budget,wa:o.wa,biz:o.biz,msgs:o.msgs,L:{orders:o.orders}}}}
 if(x){for(var k in x){if(x[k]!=null&&k!=='L'&&k!=='msgs')s[k]=x[k]}if(x.msgs)Object.assign(s.msgs,x.msgs);if(x.L)Object.assign(s.L,x.L)}}catch(e){}
 if(!s.L.cust.length&&s.L.orders.length){var sn={};s.L.orders.forEach(function(o){var k=String(o.name||'').toLowerCase();if(k&&!sn[k]){sn[k]=1;s.L.cust.push({id:uid(),name:o.name,phone:o.phone||'',city:o.city||'',note:''})}})}
+for(var lk in s.L)s.L[lk].forEach(function(o){if(o&&typeof o==='object'&&!o.id)o.id=uid()});
 return s}
-function save(){try{localStorage.setItem('met3',JSON.stringify(S))}catch(e){}}
+function save(){try{localStorage.setItem('met3',JSON.stringify(S));return true}catch(e){return false}}
 var $=function(i){return document.getElementById(i)};
 function rs(n){return 'Rs '+Math.round(n||0).toLocaleString('en-PK')}
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
@@ -142,14 +143,19 @@ function bal(o){return Math.max(0,nm(o.total)-nm(o.adv))}
 function ask(t){var v=prompt(t);if(v===null)return null;v=parseFloat(v);return isNaN(v)||v<0?null:v}
 /* ---------- security ---------- */
 function hash(p){if(window.crypto&&crypto.subtle&&window.TextEncoder){return crypto.subtle.digest('SHA-256',new TextEncoder().encode('met|'+p)).then(function(h){return Array.from(new Uint8Array(h)).map(function(x){return x.toString(16).padStart(2,'0')}).join('')})}var h=5381;for(var i=0;i<p.length;i++)h=((h<<5)+h+p.charCodeAt(i))|0;return Promise.resolve('d'+h)}
-function lgErr(i){var d=document.createElement('div');d.className='lg lgf';d.textContent='🏠💼';i.replaceWith(d)}
+function lgErr(i){var a=i.closest('.arch');(a||i).remove()}
 function showAuth(){var c=!S.pw,a=$('auth');$('fab').style.display='none';a.style.display='flex';
 a.querySelector('.box').innerHTML='<div class="bis">بسم اللہ الرحمن الرحیم</div><div class="arch"><img class="lg" src="logo.png" alt="Logo" onerror="lgErr(this)"></div><h1 class="sc">Home &amp; Business</h1><div class="orn"><i></i><span>◆</span><i></i></div><div class="kp">kept apart</div><div class="fm">'+(c?'<label for="p1">Create your password</label><input id="p1" type="password" autocomplete="new-password" placeholder="At least 4 characters"><label for="p2">Type it again</label><input id="p2" type="password" autocomplete="new-password" placeholder="Same password">':'<label for="p1">Password</label><input id="p1" type="password" autocomplete="current-password" placeholder="Enter your password">')+'<div class="err" id="er"></div><button class="btn" id="go">'+(c?'Create Password':'Login')+'</button>'+(c?'':'<div class="fg"><a href="#" id="fgp">Forgot password?</a></div>')+'</div>';
 $('go').onclick=doAuth;a.querySelectorAll('input').forEach(function(i){i.onkeydown=function(e){if(e.key==='Enter')doAuth()}});if($('fgp'))$('fgp').onclick=function(e){e.preventDefault();showReset(1)};$('p1').focus()}
 function doAuth(){var p=$('p1').value,er=$('er');
 if(!S.pw){if(p.length<4){er.textContent='Password must have at least 4 characters.';return}if(p!==$('p2').value){er.textContent='The two passwords do not match.';return}hash(p).then(function(h){S.pw=h;save();unlock()})}
 else{var lk=S.lock-Date.now();if(lk>0){er.textContent='Too many wrong tries. Please wait '+Math.ceil(lk/1000)+' seconds.';return}
-hash(p).then(function(h){if(h===S.pw){S.fc=0;save();unlock()}else{S.fails.push(Date.now());if(S.fails.length>20)S.fails.shift();S.fc=(S.fc||0)+1;if(S.fc>=5){S.lock=Date.now()+60000;S.fc=0;er.textContent='Too many wrong tries. Please wait 60 seconds.'}else er.textContent='Wrong password. Please try again.';save()}})}}
+hash(p).then(function(h){if(h===S.pw){S.fc=0;save();unlock()}else{S.fails.push(Date.now());if(S.fails.length>20)S.fails.shift();S.fc=(S.fc||0)+1;if(S.fc===1)waAlert('Wrong password alert: someone just entered a wrong password on your Home and Business app. '+new Date().toLocaleString());if(S.fc>=5)waAlert('Wrong password alert: 5 wrong tries in a row. The app is locked for 1 minute. '+new Date().toLocaleString());if(S.fc>=5){S.lock=Date.now()+60000;S.fc=0;er.textContent='Too many wrong tries. Please wait 60 seconds.'}else er.textContent='Wrong password. Please try again.';save()}})}}
+function waSend(t){var a=S.alertWA||{};if(!a.phone||!a.key)return false;try{fetch('https://api.callmebot.com/whatsapp.php?phone='+encodeURIComponent(a.phone)+'&text='+encodeURIComponent(t)+'&apikey='+encodeURIComponent(a.key),{mode:'no-cors'}).catch(function(){})}catch(e){}return true}
+function waAlert(t){waSend(t)}
+function waCard(){var a=S.alertWA||{},ph=a.phone||(S.prof.phone?'+'+intl(S.prof.phone):'');return '<div class="card"><h3>Wrong password alert on WhatsApp</h3><p class="hint">When someone enters a wrong password, a message is sent to your WhatsApp. It uses the free CallMeBot service and needs internet.</p><ol class="hint" style="padding-left:18px;margin:8px 0"><li>Save the CallMeBot WhatsApp number in your contacts. Get the current number from the CallMeBot website (search for "CallMeBot WhatsApp API").</li><li>Send it this message: I allow callmebot to send me messages</li><li>It replies with your API key. Type it below.</li></ol><label for="wp">Your WhatsApp number (with country code)</label><input id="wp" type="tel" value="'+esc(ph)+'" placeholder="+923001234567"><label for="wk">CallMeBot API key</label><input id="wk" value="'+esc(a.key||'')+'" placeholder="e.g. 123456"><button class="btn" onclick="saveWA()">Save Alert Settings</button><button class="btn ghost" onclick="testWA()">Send Test Message</button></div>'}
+function saveWA(q){var p=$('wp').value.trim();if(p&&p.charAt(0)!=='+')p='+'+intl(p);S.alertWA={phone:p,key:$('wk').value.trim()};$('wp').value=p;save();if(!q)alert('Saved.')}
+function testWA(){saveWA(1);if(!waSend('Test message from your Home and Business app. Wrong password alerts are working.')){alert('Please enter your WhatsApp number and the CallMeBot API key first.');return}alert('Test sent. Check your WhatsApp in a minute. If nothing arrives, check the number and API key.')}
 function showReset(st){var a=$('auth').querySelector('.fm'),h='';
 if(st===1){h=S.prof.phone?'<label for="rn">Enter your personal number (saved in My Profile)</label><input id="rn" type="tel" placeholder="03XXXXXXXXX"><div class="err" id="er"></div><button class="btn" id="rv">Verify</button>':'<p class="hint">No personal number is saved in My Profile, so the password cannot be reset. You can erase everything and start again.</p><button class="btn red" id="rw">Erase Everything and Start Again</button>';h+='<div class="fg"><a href="#" id="rb">Back to login</a></div>'}
 else h='<label for="n1">New password</label><input id="n1" type="password" autocomplete="new-password" placeholder="At least 4 characters"><label for="n2">Type it again</label><input id="n2" type="password" autocomplete="new-password" placeholder="Same password"><div class="err" id="er"></div><button class="btn" id="rs">Set New Password</button>';
@@ -158,36 +164,38 @@ if($('rb'))$('rb').onclick=function(e){e.preventDefault();showAuth()};
 if($('rw'))$('rw').onclick=wipe;
 if($('rv')){$('rv').onclick=doVerify;$('rn').onkeydown=function(e){if(e.key==='Enter')doVerify()};$('rn').focus()}
 if($('rs')){$('rs').onclick=doNew;a.querySelectorAll('input').forEach(function(i){i.onkeydown=function(e){if(e.key==='Enter')doNew()}});$('n1').focus()}}
-function doVerify(){if(intl($('rn').value)===intl(S.prof.phone)&&intl(S.prof.phone)!=='')showReset(2);else $('er').textContent='That number does not match.'}
+function doVerify(){if(intl($('rn').value)===intl(S.prof.phone)&&intl(S.prof.phone)!=='')showReset(2);else{$('er').textContent='That number does not match.';waAlert('Wrong password alert: someone tried to reset your password with a wrong number. '+new Date().toLocaleString())}}
 function doNew(){var p=$('n1').value;if(p.length<4){$('er').textContent='Password must have at least 4 characters.';return}if(p!==$('n2').value){$('er').textContent='The two passwords do not match.';return}hash(p).then(function(h){S.pw=h;S.fc=0;S.lock=0;save();unlock()})}
 function unlock(){$('auth').style.display='none';$('fab').style.display='block';genPend();go('dash')}
 /* ---------- pages ---------- */
 var P={
-dash:['🏠','Home Dashboard','Home Dashboard','Your personal money this month: what came in, what went out and what is left.','h'],
-addh:['➕','Add Income or Expense','Add Income or Expense','Write down every rupee you earn or spend at home. Pick a category so your summary stays clear.','h'],
-budget:['🎯','Monthly Budget','Monthly Home Budget','Decide how much you can spend this month. A red alert appears when it is finished.','h'],
-check:['✅','Monthly Bills Checklist','Monthly Bills Checklist','Electricity, gas, water, rent and other bills. Tick each one off every month so none is forgotten.','h'],
-groc:['🛒','Monthly Grocery List','Monthly Grocery List','Things you buy every month, like masala, surf and oil. Mark them bought to record the expense.','h'],
-goals:['🌟','Savings Goals','Savings Goals','Money you are saving for something special. See how close you are.','h'],
-bc:['🤝','Committee (BC)','Committee (BC) Tracker','Your monthly committee payments and the month you receive the full amount.','h'],
-zakat:['🕌','Zakat Calculator','Zakat Calculator','Work out 2.5% Zakat on your savings, gold, business stock and money owed to you.','h'],
-bdash:['📊','Business Summary','Business Summary','How your craft business is doing: sales, money received and money still to collect.','b'],
-orders:['📦','Customer Orders','Customer Orders','Record each order with its advance payment, then message the customer on WhatsApp in one tap.','b'],
-cust:['👥','Clients Info','Clients Info','Each client\'s name, WhatsApp number and city, with their orders and what they still owe. Clients are also added automatically from orders.','b'],
-prof:['👤','My Profile','My Profile','Your photo and personal number. Everything stays on this phone.','h'],
-udh:['📒','Pending Payments','Pending Payments from Clients','Money clients still need to pay you for things they took first. Send a polite reminder on WhatsApp.','b'],
-cost:['🧮','Product Costing','Product Costing','Find the true cost of each product from materials, your time and packing, and see your profit.','b'],
-inv:['🧴','Raw Material Stock','Raw Material Stock','Resin, flowers, moulds and other supplies. A red alert appears when something runs low.','b'],
-invo:['🧾','Invoices','Customer Invoices','Create a neat invoice for a customer, then print it or save it as PDF.','b'],
-msgs:['💬','Auto Messages to Clients','Auto Messages to Clients','Ready-made WhatsApp messages for confirmed orders, ready orders and payment reminders. Change the words anytime.','b'],
-alerts:['🔔','Alerts','Alerts','Things that need your attention. Open the related page, ignore the alert or mark it resolved.','h'],
-pend:['⏳','Pending Approvals','Pending Approvals','Monthly bills and groceries you saved appear here each month. Approve to add them to expenses, or reject to skip.','h'],
-rep:['📈','Reports and Export','Reports and Export','Home and Business side by side, with a PDF of all your data and a spreadsheet download.','h'],
-set:['⚙️','Settings and Security','Settings and Security','Change your password, lock the app or erase your data.','h']};
-var G=[['MY PROFILE','t',['prof']],['HOME','h',['dash','addh','budget','check','groc','goals','bc','zakat']],['BUSINESS','b',['bdash','orders','cust','udh','cost','inv','invo','msgs']],['ALERTS AND TOOLS','t',['alerts','pend','rep','set']]];
+dash:['','Home Dashboard','Home Dashboard','Your personal money this month: what came in, what went out and what is left.','h'],
+addh:['','Add Income or Expense','Add Income or Expense','Write down every rupee you earn or spend at home. Pick a category so your summary stays clear.','h'],
+budget:['','Monthly Budget','Monthly Home Budget','Decide how much you can spend this month. A red alert appears when it is finished.','h'],
+check:['','Monthly Bills Checklist','Monthly Bills Checklist','Electricity, gas, water, rent and other bills. Tick each one off every month so none is forgotten.','h'],
+groc:['','Monthly Grocery List','Monthly Grocery List','Things you buy every month, like masala, surf and oil. Mark them bought to record the expense.','h'],
+goals:['','Savings Goals','Savings Goals','Money you are saving for something special. See how close you are.','h'],
+bc:['','Committee Management','Committee Management','Your monthly committee payments and the month you receive the full amount.','h'],
+zakat:['','Zakat Calculator','Zakat Calculator','Work out 2.5% Zakat on your savings, gold, business stock and money owed to you.','h'],
+bdash:['','Business Summary','Business Summary','How your craft business is doing: sales, money received and money still to collect.','b'],
+bexp:['','Add Expense','Add Business Expense','Write down money spent on your business, like resin, packaging and delivery. It stays separate from your Home money.','b'],
+orders:['','Customer Orders','Customer Orders','Record each order with its advance payment, then message the customer on WhatsApp in one tap.','b'],
+cust:['','Clients Info','Clients Info','Each client\'s name, WhatsApp number and city, with their orders and what they still owe. Clients are also added automatically from orders.','b'],
+prof:['','My Profile','My Profile','Your photo and personal number. Everything stays on this phone.','h'],
+udh:['','Pending Payments','Pending Payments from Clients','Money clients still need to pay you for things they took first. Send a polite reminder on WhatsApp.','b'],
+cost:['','Product Costing','Product Costing','Find the true cost of each product from materials, your time and packing, and see your profit.','b'],
+inv:['','Raw Material Stock','Raw Material Stock','Resin, flowers, moulds and other supplies. A red alert appears when something runs low.','b'],
+invo:['','Invoices','Customer Invoices','Create a neat invoice for a customer, then print it or save it as PDF.','b'],
+rcpt:['','Payment Receipts','Payment Receipts Log','Save a photo of each payment a client makes, so you always have proof that they paid.','b'],
+msgs:['','Auto Messages to Clients','Auto Messages to Clients','Ready-made WhatsApp messages for confirmed orders, ready orders and payment reminders. Change the words anytime.','b'],
+alerts:['','Alerts','Alerts','Things that need your attention. Open the related page, ignore the alert or mark it resolved.','h'],
+pend:['','Pending Approvals','Pending Approvals','Monthly bills and groceries you saved appear here each month. Approve to add them to expenses, or reject to skip.','h'],
+rep:['','Reports and Export','Reports and Export','Home and Business side by side, with a PDF of all your data and a spreadsheet download.','h'],
+set:['','Settings and Security','Settings and Security','Change your password, lock the app or erase your data.','h']};
+var G=[['MY PROFILE','t',['prof']],['HOME','h',['dash','addh','budget','check','groc','goals','bc','zakat']],['BUSINESS','b',['bdash','bexp','orders','cust','udh','cost','inv','invo','rcpt','msgs']],['ALERTS AND TOOLS','t',['alerts','pend','rep','set']]];
 var cur='dash';
 function buildMenu(){var p=S.prof,h='<div class="dh" onclick="go(\'prof\')">'+av(p)+'<div><b>'+esc(p.name||'My Expense Tracker')+'</b><span>'+(p.name?'Tap to open your profile':'Tap to set up your profile')+'</span></div></div>';
-G.forEach(function(g){h+='<div class="sec '+g[1]+'">'+g[0]+'</div>';g[2].forEach(function(k){h+='<button class="nav'+(k===cur?' act':'')+'" onclick="go(\''+k+'\')"><span class="ic">'+P[k][0]+'</span><span class="nm">'+P[k][1]+'</span>'+(k==='alerts'&&nAl()?'<span class="bd">'+nAl()+'</span>':'')+(k==='pend'&&nPe()?'<span class="bd">'+nPe()+'</span>':'')+'</button>'})});$('dr').innerHTML=h}
+G.forEach(function(g){h+='<div class="sec '+g[1]+'">'+g[0]+'</div>';g[2].forEach(function(k){h+='<button class="nav'+(k===cur?' act':'')+'" onclick="go(\''+k+'\')"><span class="nm">'+P[k][1]+'</span>'+(k==='alerts'&&nAl()?'<span class="bd">'+nAl()+'</span>':'')+(k==='pend'&&nPe()?'<span class="bd">'+nPe()+'</span>':'')+'</button>'})});$('dr').innerHTML=h}
 function menu(o){$('dr').classList.toggle('on',o);$('ov').classList.toggle('on',o)}
 $('bg').onclick=function(){menu(true)};$('ov').onclick=function(){menu(false)};
 var sx=0;document.addEventListener('touchstart',function(e){sx=e.touches[0].clientX},{passive:true});
@@ -195,13 +203,13 @@ document.addEventListener('touchend',function(e){if($('auth').style.display==='f
 function go(k){cur=k;menu(false);render();scrollTo(0,0)}
 function head(k){return '<div class="ph"><h2>'+P[k][2]+'</h2><p>'+P[k][3]+'</p></div>'}
 function render(){var p=P[cur];document.body.className=p[4]==='b'?'b':'';$('ttl').textContent=p[1];
-var f=F[cur],h=f?f():gen(cur);$('v').innerHTML=head(cur)+h;buildMenu();var n=nAl();$('dot').style.display=n?'flex':'none';$('dot').textContent=n}
+var f=F[cur],h=f?f():gen(cur);$('v').innerHTML=head(cur)+h;buildMenu();if(cur==='zakat')loadNisab();var n=nAl();$('dot').style.display=n?'flex':'none';$('dot').textContent=n}
 function empty(t,b,k){return '<div class="empty">'+t+(b?'<br><button class="btn" onclick="go(\''+k+'\')">'+b+'</button>':'')+'</div>'}
 /* ---------- money ---------- */
 function mtx(){return S.tx.filter(function(t){return t.sp!=='b'&&t.d.slice(0,7)===mk()})}
 function sums(){var i=0,e=0;mtx().forEach(function(t){t.t==='in'?i+=t.a:e+=t.a});return{i:i,e:e}}
-function addTx(t,c,a,n,sp){S.tx.push({t:t,c:c,a:a,n:n||'',d:today(),sp:sp||'h'})}
-var HC=['Groceries','Bills','Rent','Beauty','Clothing (shoes, garments)','Transport','Health','Committee (BC)','Other'];
+function addTx(t,c,a,n,sp,d){S.tx.push({t:t,c:c,a:a,n:n||'',d:d||today(),sp:sp||'h'})}
+var HC=['Groceries','Bills','Rent','Beauty','Clothing (shoes, garments)','Transport','Health','Committee','Other'];
 /* ---------- alerts ---------- */
 function getAl(){var a=[],m=mk(),s=sums(),L=S.L;
 if(S.budget>0&&s.e>S.budget)a.push({id:'bud'+m,n:'Budget Finished Alert',m:'You have spent '+rs(s.e)+' but your monthly budget is '+rs(S.budget)+'.',go:'budget',gl:'Open Monthly Budget'});
@@ -241,18 +249,32 @@ function saveTx(){var a=nm($('a').value);if(a<=0){alert('Please enter an amount 
 F.budget=function(){var s=sums(),p=S.budget>0?Math.min(100,s.e/S.budget*100):0;
 return '<div class="card"><h3>Set this month\'s budget</h3><label for="b">Budget (Rs)</label><input id="b" type="number" inputmode="decimal" value="'+(S.budget||'')+'" placeholder="e.g. 50000"><button class="btn" onclick="setB()">Save Budget</button></div><div class="card"><h3>How much is used</h3>'+(S.budget>0?'<div class="bar"><i style="width:'+p+'%;background:'+(p>=100?'var(--red)':p>80?'#f0b429':'var(--pi2)')+'"></i></div><p>'+rs(s.e)+' spent of '+rs(S.budget)+' ('+Math.round(p)+'%)</p><p class="hint">Left: '+rs(Math.max(0,S.budget-s.e))+'</p>':'<div class="empty">No budget set yet. Enter an amount above.</div>')+'</div>'};
 function setB(){S.budget=nm($('b').value);save();render()}
-F.zakat=function(){var f=[['z1','Cash and bank savings'],['z2','Gold and silver value'],['z3','Business stock and goods'],['z4','Money others owe you'],['z5','Debts you must pay'],['z6','Nisab value (check today\'s silver rate)']],h='<div class="card"><h3>Your wealth (Rs)</h3>';
+F.zakat=function(){var f=[['z1','Cash and bank savings'],['z2','Gold and silver value'],['z3','Business stock and goods'],['z4','Money others owe you'],['z5','Debts you must pay'],['z6','Nisab value (silver, 612.36 grams)']],h='<div class="card"><h3>Your wealth (Rs)</h3>';
 f.forEach(function(x){h+='<label for="'+x[0]+'">'+x[1]+'</label><input id="'+x[0]+'" type="number" inputmode="decimal" min="0">'});
-return h+'<button class="btn" onclick="calcZ()">Calculate Zakat</button><div id="zr" style="margin-top:12px"></div></div>'};
+return h+'<p class="hint" id="zn"></p><button class="btn sm ghost" style="margin-top:8px" onclick="loadNisab()">Check Silver Rate Again</button><button class="btn" onclick="calcZ()">Calculate Zakat</button><div id="zr" style="margin-top:12px"></div></div>'};
+function loadNisab(){var z=$('zn'),inp=$('z6');if(!z||!inp)return;
+if(S.nisab&&S.nisab.v){inp.value=S.nisab.v;z.textContent='Last checked on '+S.nisab.d+': about '+rs(S.nisab.v)+'. Checking today\'s rate...'}else z.textContent='Checking today\'s silver rate...';
+function tm(u){return Promise.race([fetch(u).then(function(r){if(!r.ok)throw 0;return r.json()}),new Promise(function(_,j){setTimeout(j,8000)})])}
+Promise.all([tm('https://api.gold-api.com/price/XAG'),tm('https://open.er-api.com/v6/latest/USD')]).then(function(r){var oz=nm(r[0].price),pk=r[1].rates&&nm(r[1].rates.PKR);if(!(oz>0&&pk>0))throw 0;var v=Math.round(612.36*oz/31.1035*pk);S.nisab={v:v,d:today()};save();
+if($('z6')){$('z6').value=v;$('zn').textContent='Silver nisab (612.36 grams) is about '+rs(v)+' today. It is worked out from the international silver price and the dollar rate. Local shop rates can differ a little, so you can change the number.'}})
+.catch(function(){if($('zn'))$('zn').textContent=(S.nisab&&S.nisab.v?'Could not check today\'s rate (no internet?). Showing the last checked value from '+S.nisab.d+'. ':'Could not check the silver rate (no internet?). Please type the nisab value yourself. ')+'Silver nisab is 612.36 grams.'})}
 function calcZ(){var w=nm($('z1').value)+nm($('z2').value)+nm($('z3').value)+nm($('z4').value)-nm($('z5').value),n=nm($('z6').value);
 $('zr').innerHTML=w<=0?'<p>Your net wealth is '+rs(w)+'. No Zakat to pay.</p>':n>0&&w<n?'<p>Net wealth '+rs(w)+' is below the nisab '+rs(n)+'. No Zakat is due.</p>':'<div class="news">Net wealth: <b>'+rs(w)+'</b><br>Zakat due (2.5%): <b>'+rs(w*0.025)+'</b></div><p class="hint">Please confirm with a scholar for your situation.</p>'}
 F.bdash=function(){var O=S.L.orders,rev=0,adv=0,pen=0,un=0;O.forEach(function(o){rev+=nm(o.total);adv+=nm(o.adv);pen+=bal(o);if(!o.done)un++});var ud=0;S.L.udh.forEach(function(o){ud+=nm(o.amt)});
 var bx=0;S.tx.forEach(function(t){if(t.sp==='b')bx+=t.a});var h='<div class="grid"><div class="stat"><small>Total orders</small><b>'+O.length+'</b></div><div class="stat"><small>Waiting for delivery</small><b>'+un+'</b></div><div class="stat"><small>Total sales</small><b>'+rs(rev)+'</b></div><div class="stat"><small>Money received</small><b class="good">'+rs(adv)+'</b></div><div class="stat"><small>Still to receive</small><b class="bad">'+rs(pen)+'</b></div><div class="stat"><small>Pending client payments</small><b class="bad">'+rs(ud)+'</b></div><div class="stat"><small>Business spending</small><b class="bad">'+rs(bx)+'</b></div><div class="stat"><small>Received minus spending</small><b>'+rs(adv-bx)+'</b></div></div>';
 if(!O.length)h+='<div class="card">'+empty('No orders yet.','Add first order','orders')+'</div>';
 var bl=S.tx.map(function(t,i){return{t:t,i:i}}).filter(function(x){return x.t.sp==='b'}).reverse().slice(0,10);
-h+='<div class="card"><h3>Business spending</h3>'+(bl.length?bl.map(function(x){return '<div class="row"><div class="rt"><div class="l"><b>'+esc(x.t.c)+'</b><small>'+esc(x.t.n)+' • '+x.t.d+'</small></div><div class="r bad">'+rs(x.t.a)+'</div></div><div class="acts"><button class="btn sm red" onclick="delTx('+x.i+')">Delete Entry</button></div></div>'}).join(''):'<div class="empty">No business spending yet. Tap Scan Bill to add supplies.</div>')+'</div>';return h};
-F.prof=function(){var p=S.prof;return '<div class="card" style="text-align:center">'+av(p,1)+'<div class="acts" style="justify-content:center"><button class="btn sm wa" onclick="$(\'pp1\').click()">📷 Take Photo</button><button class="btn sm ghost" onclick="$(\'pp2\').click()">🖼️ Choose Photo</button>'+(p.photo?'<button class="btn sm red" onclick="S.prof.photo=\'\';save();render()">Remove Photo</button>':'')+'</div><input id="pp1" type="file" accept="image/*" capture="user" hidden onchange="pPhoto(this)"><input id="pp2" type="file" accept="image/*" hidden onchange="pPhoto(this)"></div><div class="card"><h3>About you</h3><label for="pn">Your name</label><input id="pn" value="'+esc(p.name)+'"><label for="pt">Your personal number</label><input id="pt" type="tel" value="'+esc(p.phone)+'" placeholder="03XXXXXXXXX"><label for="pb">Business name</label><input id="pb" value="'+esc(S.biz)+'"><p class="hint">Your clients\' WhatsApp numbers are saved in Clients Info. </p><button class="btn" onclick="saveP()">Save Profile</button></div>'};
-function av(p,big){return p.photo?'<img class="av'+(big?' big':'')+'" src="'+p.photo+'" alt="Your photo">':'<div class="av'+(big?' big':'')+'">'+esc((p.name||'🌸').charAt(0).toUpperCase())+'</div>'}
+h+='<div class="card"><h3>Business spending</h3>'+(bl.length?bl.map(function(x){return '<div class="row"><div class="rt"><div class="l"><b>'+esc(x.t.c)+'</b><small>'+esc(x.t.n)+' • '+x.t.d+'</small></div><div class="r bad">'+rs(x.t.a)+'</div></div><div class="acts"><button class="btn sm red" onclick="delTx('+x.i+')">Delete Entry</button></div></div>'}).join(''):'<div class="empty">No business spending yet. Open Add Expense in the menu to add one.</div>')+'</div>';return h};
+F.bexp=function(){var cats=['Raw materials (resin, flowers)','Moulds and tools','Packaging','Delivery and courier','Advertising','Workshop rent and bills','Other'],m=0,all=0;
+S.tx.forEach(function(t){if(t.sp==='b'&&t.t==='out'){all+=t.a;if(t.d.slice(0,7)===mk())m+=t.a}});
+var h='<div class="grid"><div class="stat"><small>Spent this month</small><b class="bad">'+rs(m)+'</b></div><div class="stat"><small>Spent in total</small><b class="bad">'+rs(all)+'</b></div></div><div class="card"><h3>New business expense</h3><label for="bxc">Category</label><select id="bxc">'+cats.map(function(c){return '<option>'+c+'</option>'}).join('')+'</select><label for="bxa">Amount (Rs)</label><input id="bxa" type="number" inputmode="decimal" min="0" placeholder="e.g. 4500"><label for="bxn">Note (optional)</label><input id="bxn" placeholder="e.g. resin from wholesale market"><label for="bxd">Date</label><input id="bxd" type="date" value="'+today()+'"><button class="btn" onclick="saveBx()">Save Expense</button></div><div class="card"><h3>Your business expenses</h3>';
+var l=S.tx.map(function(t,i){return{t:t,i:i}}).filter(function(x){return x.t.sp==='b'}).reverse().slice(0,30);
+if(!l.length)h+='<div class="empty">No business expenses yet. Add your first one above.</div>';
+l.forEach(function(x){h+='<div class="row"><div class="rt"><div class="l"><b>'+esc(x.t.c)+'</b><small>'+esc(x.t.n||'No note')+' - '+x.t.d+'</small></div><div class="r bad">'+rs(x.t.a)+'</div></div><div class="acts"><button class="btn sm red" onclick="delTx('+x.i+')">Delete Entry</button></div></div>'});
+return h+'</div>'};
+function saveBx(){var a=nm($('bxa').value);if(a<=0){alert('Please enter an amount greater than 0.');return}addTx('out',$('bxc').value,a,$('bxn').value.trim(),'b',$('bxd').value||today());save();render()}
+F.prof=function(){var p=S.prof;return '<div class="card" style="text-align:center">'+av(p,1)+'<div class="acts" style="justify-content:center"><button class="btn sm wa" onclick="$(\'pp1\').click()"> Take Photo</button><button class="btn sm ghost" onclick="$(\'pp2\').click()"> Choose Photo</button>'+(p.photo?'<button class="btn sm red" onclick="S.prof.photo=\'\';save();render()">Remove Photo</button>':'')+'</div><input id="pp1" type="file" accept="image/*" capture="user" hidden onchange="pPhoto(this)"><input id="pp2" type="file" accept="image/*" hidden onchange="pPhoto(this)"></div><div class="card"><h3>About you</h3><label for="pn">Your name</label><input id="pn" value="'+esc(p.name)+'"><label for="pt">Your personal number</label><input id="pt" type="tel" value="'+esc(p.phone)+'" placeholder="03XXXXXXXXX"><label for="pb">Business name</label><input id="pb" value="'+esc(S.biz)+'"><p class="hint">Your clients\' WhatsApp numbers are saved in Clients Info. </p><button class="btn" onclick="saveP()">Save Profile</button></div>'};
+function av(p,big){return p.photo?'<img class="av'+(big?' big':'')+'" src="'+p.photo+'" alt="Your photo">':'<div class="av'+(big?' big':'')+'">'+esc((p.name||'Me').charAt(0).toUpperCase())+'</div>'}
 function saveP(){S.prof.name=$('pn').value.trim();S.prof.phone=$('pt').value.trim();S.biz=$('pb').value.trim()||'My Business';save();render();alert('Saved.')}
 function pPhoto(inp){var f=inp.files&&inp.files[0];if(!f)return;var im=new Image();im.onerror=function(){alert('Could not open that photo. Please try another.')};im.onload=function(){var z=320,c=document.createElement('canvas');c.width=c.height=z;var q=Math.min(im.width,im.height);c.getContext('2d').drawImage(im,(im.width-q)/2,(im.height-q)/2,q,q,0,0,z,z);S.prof.photo=c.toDataURL('image/jpeg',.82);save();render()};im.src=URL.createObjectURL(f)}
 F.msgs=function(){var m=S.msgs;return '<div class="card"><h3>Edit your messages</h3><p class="hint">You can use: {name} {item} {total} {advance} {balance} {biz}</p><label for="m1">Order confirmed</label><textarea id="m1">'+esc(m.confirm)+'</textarea><label for="m2">Order ready</label><textarea id="m2">'+esc(m.ready)+'</textarea><label for="m3">Payment reminder</label><textarea id="m3">'+esc(m.remind)+'</textarea><button class="btn" onclick="saveM()">Save Messages</button></div>'};
@@ -267,10 +289,10 @@ function appr(id,y){var p=S.pend.filter(function(x){return x.id===id})[0];if(!p)
 F.rep=function(){var s=sums(),O=S.L.orders,rev=0,adv=0,pen=0,ud=0;O.forEach(function(o){rev+=nm(o.total);adv+=nm(o.adv);pen+=bal(o)});S.L.udh.forEach(function(o){ud+=nm(o.amt)});
 var mx=Math.max(s.i,s.e,adv,pen,1);function b(l,v,c){return '<div style="margin:8px 0"><small>'+l+': <b>'+rs(v)+'</b></small><div class="bar"><i style="width:'+(v/mx*100)+'%;background:'+c+'"></i></div></div>'}
 return '<div class="card"><h3>Home this month</h3>'+b('Income',s.i,'var(--pi2)')+b('Spent',s.e,'var(--pk2)')+'</div><div class="card"><h3>Business so far</h3>'+b('Money received',adv,'var(--bl2)')+b('Still to receive',pen,'#f6d77a')+'<p class="hint">Total sales '+rs(rev)+' • Pending client payments '+rs(ud)+'</p></div><div class="card"><h3>Export all data as PDF</h3><p class="hint">One PDF with your Home entries, Business orders, clients, bills, goals, stock and invoices.</p><button class="btn" onclick="exportPdf()">Download PDF</button></div><div class="card"><h3>Download spreadsheet</h3><p class="hint">Opens in Excel. Includes Home entries and Business orders.</p><button class="btn" onclick="exp()">Download Excel (CSV) File</button></div>'};
-function exp(){var c='Type,Category/Item,Amount,Note/Customer,Date/Status\n';S.tx.forEach(function(t){c+=[(t.sp==='b'?'Business ':'Home ')+(t.t==='in'?'income':'expense'),t.c,t.a,t.n,t.d].map(q).join(',')+'\n'});S.L.orders.forEach(function(o){c+=['Business order',o.item,o.total,o.name,o.done?'Delivered':'Pending'].map(q).join(',')+'\n'});
+function exp(){var c='Type,Category/Item,Amount,Note/Customer,Date/Status\n';S.tx.forEach(function(t){c+=[(t.sp==='b'?'Business ':'Home ')+(t.t==='in'?'income':'expense'),t.c,t.a,t.n,t.d].map(q).join(',')+'\n'});S.L.orders.forEach(function(o){c+=['Business order',o.item,o.total,o.name,(bal(o)>0?'Payment pending: balance '+Math.round(bal(o)):'Payment: paid in full')+' / '+(o.done?'Delivered':'Not delivered yet')].map(q).join(',')+'\n'});
 var a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\ufeff'+c],{type:'text/csv'}));a.download='my-expense-report.csv';document.body.appendChild(a);a.click();a.remove()}
 function q(v){return '"'+String(v==null?'':v).replace(/"/g,'""')+'"'}
-F.set=function(){var fl=S.fails.slice(-5).reverse().map(function(t){return '<small>'+new Date(t).toLocaleString()+'</small>'}).join('<br>');return '<div class="card"><h3>Wrong password tries</h3>'+(fl||'<p class="hint">None. Nobody has entered a wrong password.</p>')+(fl?'<button class="btn sm ghost" style="margin-top:10px" onclick="S.fails=[];save();render()">Clear History</button>':'')+'</div><div class="card"><h3>Change password</h3><label for="s1">Current password</label><input id="s1" type="password" autocomplete="current-password"><label for="s2">New password</label><input id="s2" type="password" autocomplete="new-password"><button class="btn" onclick="chPw()">Change Password</button></div><div class="card"><h3>Lock the app</h3><button class="btn ghost" onclick="showAuth()">Lock App Now</button></div><div class="card"><h3>Erase everything</h3><p class="hint">Deletes all entries, orders and your password from this phone.</p><button class="btn red" onclick="wipe()">Erase All Data</button></div>'};
+F.set=function(){var fl=S.fails.slice(-5).reverse().map(function(t){return '<small>'+new Date(t).toLocaleString()+'</small>'}).join('<br>');return '<div class="card"><h3>Wrong password tries</h3>'+(fl||'<p class="hint">None. Nobody has entered a wrong password.</p>')+(fl?'<button class="btn sm ghost" style="margin-top:10px" onclick="S.fails=[];save();render()">Clear History</button>':'')+'</div>'+waCard()+'<div class="card"><h3>Change password</h3><label for="s1">Current password</label><input id="s1" type="password" autocomplete="current-password"><label for="s2">New password</label><input id="s2" type="password" autocomplete="new-password"><button class="btn" onclick="chPw()">Change Password</button></div><div class="card"><h3>Lock the app</h3><button class="btn ghost" onclick="showAuth()">Lock App Now</button></div><div class="card"><h3>Erase everything</h3><p class="hint">Deletes all entries, orders and your password from this phone.</p><button class="btn red" onclick="wipe()">Erase All Data</button></div>'};
 function chPw(){var n=$('s2').value;if(n.length<4){alert('New password needs at least 4 characters.');return}hash($('s1').value).then(function(h){if(h!==S.pw){alert('Current password is wrong.');return}hash(n).then(function(x){S.pw=x;save();alert('Password changed.');$('s1').value='';$('s2').value=''})})}
 function wipe(){if(confirm('Erase ALL data and password? This cannot be undone.')){try{localStorage.removeItem('met3');localStorage.removeItem('met2')}catch(e){}S=copy(D);cur='dash';showAuth()}}
 /* ---------- generic list pages ---------- */
@@ -279,15 +301,15 @@ var M={
 cust:{f:[['name','Client name'],['phone','Client WhatsApp number','tel'],['city','City'],['note','Notes (optional)']],fh:'Add a client',lh:'Your clients',em:'No clients yet. Add one above, or add an order and the client is saved automatically.',
 row:function(o){var n=0,ow=0,nk=String(o.name).toLowerCase();S.L.orders.forEach(function(r){if(String(r.name).toLowerCase()===nk||(o.phone&&r.phone&&intl(r.phone)===intl(o.phone))){n++;ow+=bal(r)}});return[o.name,(o.phone||'No WhatsApp number')+(o.city?' • '+o.city:'')+' • '+n+' order(s)'+(o.note?' • '+o.note:''),ow>0?'Owes '+rs(ow):'',ow>0?'no':'ok']},acts:[['Open WhatsApp Chat','cmsg','wa']]},
 orders:{f:[['name','Customer name'],['phone','Customer WhatsApp number','tel'],['city','City'],['item','Item ordered'],['total','Total price (Rs)','n'],['adv','Advance received (Rs)','n']],req:'total',fh:'Add a new order',lh:'All orders',em:'No orders yet. Add your first order above.',
-row:function(o){return[o.name+' - '+o.item,(o.city?o.city+' • ':'')+'Total '+rs(o.total)+' • Advance '+rs(o.adv)+' • Balance '+rs(bal(o)),o.done?'Delivered':'Pending',o.done?'ok':'']},
-acts:[['Send Confirmation','conf','wa'],['Order Ready Message','rdy','ghost'],['Payment Reminder','rem','ghost'],['Receive Payment','recv','ghost'],[function(o){return o.done?'Mark Pending':'Mark Delivered'},'dlv','ghost']]},
+row:function(o){return[o.name+' - '+o.item,(o.city?o.city+' • ':'')+'Total '+rs(o.total)+' • Paid '+rs(o.adv)+' • Balance '+rs(bal(o))+' • '+(o.done?'Delivered':'Not delivered yet'),bal(o)<=0?'Paid in full':'Balance '+rs(bal(o)),bal(o)<=0?'ok':'no']},
+acts:[['Send Confirmation','conf','wa'],['Order Ready Message','rdy','ghost'],['Payment Reminder','rem','ghost'],['Receive Payment','recv','ghost'],['Mark Fully Paid','fpaid','ghost'],[function(o){return o.done?'Mark Not Delivered':'Mark Delivered'},'dlv','ghost']]},
 check:{f:[['name','Bill name','s',['Electricity bill','Gas bill','Water bill','Rent','Internet bill','Phone bill','Other bill']],['amt','Usual amount (Rs)','n']],fh:'Add a monthly bill',lh:'Bills this month',em:'No bills added yet. Add electricity, gas, water and rent above.',
 row:function(o){var p=o.paid===mk();return[o.name,'Usual amount '+rs(o.amt),p?'Paid':'Not paid',p?'ok':'no']},acts:[['Mark Paid','cpay','wa']]},
 groc:{f:[['name','Item (e.g. masala, surf, oil)'],['qty','Quantity (e.g. 2 packs)'],['amt','Estimated cost (Rs)','n']],fh:'Add a monthly grocery item',lh:'Grocery list',em:'No grocery items yet. Add the things you buy every month.',
 row:function(o){var p=o.last===mk();return[o.name,(o.qty?o.qty+' • ':'')+'Estimated '+rs(o.amt),p?'Bought':'To buy',p?'ok':'']},acts:[['Mark Bought','gbuy','wa']]},
 goals:{f:[['name','What are you saving for?'],['target','Target amount (Rs)','n'],['saved','Saved so far (Rs)','n']],req:'target',fh:'Add a savings goal',lh:'Your goals',em:'No goals yet. Add something you are saving for.',
 row:function(o){var p=Math.min(100,nm(o.saved)/Math.max(1,nm(o.target))*100);return[o.name,'Saved '+rs(o.saved)+' of '+rs(o.target),Math.round(p)+'%',p>=100?'ok':'']},acts:[['Add Savings','gsave','wa']]},
-bc:{f:[['name','Committee name'],['amt','Monthly payment (Rs)','n'],['mem','Number of members','n'],['turn','Your turn (month number)','n']],req:'amt',fh:'Add a committee (BC)',lh:'Your committees',em:'No committees yet. Add one above.',
+bc:{f:[['name','Committee name'],['amt','Monthly payment (Rs)','n'],['mem','Number of members','n'],['turn','Your turn (month number)','n']],req:'amt',fh:'Add a committee',lh:'Your committees',em:'No committees yet. Add one above.',
 row:function(o){var p=o.paid===mk();return[o.name,rs(o.amt)+' x '+o.mem+' members • You receive '+rs(nm(o.amt)*nm(o.mem))+' in month '+o.turn,p?'Paid':'Due',p?'ok':'no']},acts:[['Mark This Month Paid','bcp','wa']]},
 udh:{f:[['name','Customer name'],['phone','Customer WhatsApp number','tel'],['amt','Amount owed (Rs)','n'],['note','What was sold']],req:'amt',fh:'Add a payment a client still owes',lh:'Who owes you',em:'Nothing pending. Add a payment a client still owes above.',
 row:function(o){return[o.name,o.note||'Pending payment',rs(o.amt),nm(o.amt)>0?'no':'ok']},acts:[['Payment Received','urec','wa'],['Send Reminder','urem','ghost']]},
@@ -295,10 +317,10 @@ cost:{f:[['name','Product name'],['mat','Material cost (Rs)','n'],['hrs','Hours 
 row:function(o){var c=cost(o),p=nm(o.price)-c;return[o.name,'Total cost '+rs(c)+' • Selling price '+rs(o.price),'Profit '+rs(p),p<0?'no':'ok']},acts:[]},
 inv:{f:[['name','Material name'],['qty','Quantity in stock','n'],['unit','Unit (e.g. ml, pcs, grams)'],['min','Alert me below','n']],fh:'Add a material',lh:'Your stock',em:'No materials yet. Add resin, flowers, moulds and more.',
 row:function(o){var l=nm(o.qty)<=nm(o.min);return[o.name,o.qty+' '+(o.unit||'')+' left • alert below '+o.min,l?'Low':'OK',l?'no':'ok']},acts:[['Update Quantity','iqty','wa']]},
-invo:{f:[['name','Customer name'],['item','Item or service'],['amt','Amount (Rs)','n'],['date','Invoice date','d']],req:'amt',fh:'Create an invoice',lh:'Your invoices',em:'No invoices yet. Create one above.',
-row:function(o){return[o.name+' - '+o.item,o.date,rs(o.amt),'']},acts:[['Open Printable Invoice','ipr','wa']]}};
+invo:{f:[['name','Client name'],['phone','Client WhatsApp number','tel'],['item','Item or service'],['amt','Amount (Rs)','n'],['date','Invoice date','d']],req:'amt',fh:'Create an invoice',lh:'Your invoices',em:'No invoices yet. Create one above.',
+row:function(o){return[o.name+' - '+o.item,o.date+(o.phone?' • '+o.phone:''),(o.paid?'Paid':'Unpaid')+' '+rs(o.amt),o.paid?'ok':'no']},acts:[['Send on WhatsApp','iwa','wa'],['Share Invoice PDF','ipdf','ghost'],['Open Printable Invoice','ipr','ghost'],[function(o){return o.paid?'Mark Unpaid':'Mark Paid'},'ipaid','ghost']]}};
 function gen(k){var m=M[k],i,h='<div class="card"><h3>'+m.fh+'</h3>';
-if(S.L.cust.length&&(k==='orders'||k==='udh'||k==='invo'))h+='<label for="gc">Choose a saved client (optional)</label><select id="gc" onchange="fillC(this.value)"><option value="">Type a new client below</option>'+S.L.cust.map(function(c,i){return '<option value="'+i+'">'+esc(c.name)+'</option>'}).join('')+'</select>';
+if(k==='orders'||k==='udh'||k==='invo'){var ac=allClients();h+='<label for="gc">Select a client</label>'+(ac.length?'<select id="gc" onchange="fillC(this.value)"><option value="">Choose a saved client...</option>'+ac.map(function(c,i){return '<option value="'+i+'">'+esc(c.name)+(c.phone?' ('+esc(c.phone)+')':'')+'</option>'}).join('')+'</select><p class="hint">Or type a new client below.</p>':'<p class="hint">No saved clients yet. Add them in Clients Info, or type a new client below.</p>')}
 m.f.forEach(function(f){var id='g_'+f[0],t=f[2];h+='<label for="'+id+'">'+f[1]+'</label>';
 if(t==='s'){h+='<select id="'+id+'">'+f[3].map(function(x){return '<option>'+x+'</option>'}).join('')+'</select>'}
 else h+='<input id="'+id+'" '+(t==='n'?'type="number" inputmode="decimal" min="0"':t==='tel'?'type="tel"':t==='d'?'type="date" value="'+today()+'"':'type="text"')+'>'});
@@ -307,7 +329,8 @@ var a=S.L[k];if(!a.length)h+='<div class="empty">'+m.em+'</div>';
 a.forEach(function(o,i){var r=m.row(o);h+='<div class="row"><div class="rt"><div class="l"><b>'+esc(r[0])+'</b><small>'+esc(r[1])+'</small></div>'+(r[2]?'<div class="r">'+esc(r[2])+'</div>':'')+'</div><div class="acts">';
 m.acts.forEach(function(x){h+='<button class="btn sm '+x[2]+'" onclick="act(\''+k+'\','+i+',\''+x[1]+'\')">'+(typeof x[0]==='function'?x[0](o):x[0])+'</button>'});
 h+='<button class="btn sm red" onclick="delG(\''+k+'\','+i+')">Delete</button></div></div>'});return h+'</div>'}
-function fillC(i){var c=S.L.cust[i];if(i===''||!c)return;[['g_name',c.name],['g_phone',c.phone],['g_city',c.city]].forEach(function(x){var e=$(x[0]);if(e)e.value=x[1]||''})}
+function allClients(){var a=S.L.cust.slice(),seen={};a.forEach(function(c){seen[String(c.name).toLowerCase()]=1});['orders','udh','invo','rcpt'].forEach(function(k){S.L[k].forEach(function(o){var n=String(o.name||'').trim(),q=n.toLowerCase();if(n&&!seen[q]){seen[q]=1;a.push({name:n,phone:o.phone||'',city:o.city||''})}})});return a.sort(function(x,y){return String(x.name).toLowerCase()<String(y.name).toLowerCase()?-1:1})}
+function fillC(i){var c=allClients()[i];if(i===''||!c)return;[['g_name',c.name],['g_phone',c.phone],['g_city',c.city]].forEach(function(x){var e=$(x[0]);if(e)e.value=x[1]||''})}
 function addG(k){var m=M[k],o={id:uid()};m.f.forEach(function(f){var v=$('g_'+f[0]).value.trim();o[f[0]]=f[2]==='n'?nm(v):v});
 if(!o[m.f[0][0]]){alert('Please fill in the first field.');return}if(m.req&&!(o[m.req]>0)){alert('Please enter an amount greater than 0.');return}
 if((k==='orders'||k==='udh')&&o.name&&!S.L.cust.some(function(c){return String(c.name).toLowerCase()===o.name.toLowerCase()}))S.L.cust.push({id:uid(),name:o.name,phone:o.phone||'',city:o.city||'',note:''});
@@ -316,15 +339,17 @@ function delG(k,i){if(confirm('Delete this item?')){S.L[k].splice(i,1);save();re
 function fillMsg(t,o){return S.msgs[t].replace(/\{name\}/g,o.name).replace(/\{item\}/g,o.item||o.note||'your order').replace(/\{total\}/g,Math.round(nm(o.total))).replace(/\{advance\}/g,Math.round(nm(o.adv))).replace(/\{balance\}/g,Math.round(bal(o))).replace(/\{biz\}/g,S.biz)}
 function intl(p){p=String(p).replace(/\D/g,'');if(p.indexOf('0')===0)p='92'+p.slice(1);return p}
 function sendW(o,t){if(!o.phone){alert('This customer has no WhatsApp number saved. Delete it and add it again with a number.');return}window.open('https://wa.me/'+intl(o.phone)+'?text='+encodeURIComponent(fillMsg(t,o)),'_blank')}
-var A={cmsg:function(o){if(!o.phone){alert('No WhatsApp number saved for this client.');return}window.open('https://wa.me/'+intl(o.phone),'_blank')},conf:function(o){sendW(o,'confirm')},rdy:function(o){sendW(o,'ready')},rem:function(o){sendW(o,'remind')},
+var A={fpaid:function(o){o.adv=nm(o.total)},ipaid:function(o){o.paid=!o.paid},
+iwa:function(o){var ph=o.phone;if(!ph){var c=S.L.cust.filter(function(x){return String(x.name).toLowerCase()===String(o.name).toLowerCase()})[0];ph=c&&c.phone}window.open('https://wa.me/'+(ph?intl(ph):'')+'?text='+encodeURIComponent(invMsg(o)),'_blank')},
+ipdf:function(o){var by=invBytes(o),nmf='invoice-'+String(o.name).replace(/[^a-z0-9]+/gi,'-').toLowerCase()+'.pdf';try{var f=new File([by],nmf,{type:'application/pdf'});if(navigator.canShare&&navigator.canShare({files:[f]})){navigator.share({files:[f],title:'Invoice',text:invMsg(o)}).catch(function(){});return}}catch(e){}dlBytes(by,nmf);alert('Your invoice PDF was saved. You can attach it to a WhatsApp chat.')},cmsg:function(o){if(!o.phone){alert('No WhatsApp number saved for this client.');return}window.open('https://wa.me/'+intl(o.phone),'_blank')},conf:function(o){sendW(o,'confirm')},rdy:function(o){sendW(o,'ready')},rem:function(o){sendW(o,'remind')},
 recv:function(o){var v=ask('How much payment received (Rs)?');if(v!==null)o.adv=nm(o.adv)+v},dlv:function(o){o.done=!o.done},
 cpay:function(o){if(o.paid!==mk())settle('check',o)},gbuy:function(o){if(o.last!==mk())settle('groc',o)},
 gsave:function(o){var v=ask('How much to add to savings (Rs)?');if(v!==null)o.saved=nm(o.saved)+v},
-bcp:function(o){if(o.paid!==mk()){o.paid=mk();addTx('out','Committee (BC)',nm(o.amt),o.name)}},
+bcp:function(o){if(o.paid!==mk()){o.paid=mk();addTx('out','Committee',nm(o.amt),o.name)}},
 urec:function(o){var v=ask('How much was received (Rs)?');if(v!==null)o.amt=Math.max(0,nm(o.amt)-v)},
 urem:function(o){sendW({name:o.name,phone:o.phone,item:o.note||'your purchase',total:o.amt,adv:0},'remind')},
 iqty:function(o){var v=ask('New quantity in stock?');if(v!==null)o.qty=v},
-ipr:function(o){var w=window.open('','_blank');if(!w){alert('Please allow pop-ups to open the invoice.');return}w.document.write('<title>Invoice</title><body style="font-family:sans-serif;max-width:600px;margin:30px auto;padding:20px"><h1>'+esc(S.biz)+'</h1><p>WhatsApp: '+esc(S.prof.phone||S.wa||'-')+'</p><hr><h2>Invoice</h2><p>Date: '+esc(o.date)+'</p><p>Customer: <b>'+esc(o.name)+'</b></p><table style="width:100%;border-collapse:collapse"><tr style="background:#eee"><th align=left style="padding:8px">Item</th><th align=right>Amount</th></tr><tr><td style="padding:8px">'+esc(o.item)+'</td><td align=right>'+rs(o.amt)+'</td></tr></table><h3 style="text-align:right">Total: '+rs(o.amt)+'</h3><p>Thank you for your order!</p><button onclick="print()">Print or Save as PDF</button></body>');w.document.close()}};
+ipr:function(o){var w=window.open('','_blank');if(!w){alert('Please allow pop-ups to open the invoice.');return}w.document.write('<title>Invoice</title><body style="font-family:sans-serif;max-width:600px;margin:30px auto;padding:20px"><h1>'+esc(S.biz)+'</h1><p>WhatsApp: '+esc(S.prof.phone||S.wa||'-')+'</p><hr><h2>Invoice</h2><p>Date: '+esc(o.date)+'</p><p>Customer: <b>'+esc(o.name)+'</b></p><table style="width:100%;border-collapse:collapse"><tr style="background:#eee"><th align=left style="padding:8px">Item</th><th align=right>Amount</th></tr><tr><td style="padding:8px">'+esc(o.item)+'</td><td align=right>'+rs(o.amt)+'</td></tr></table><h3 style="text-align:right">Total: '+rs(o.amt)+'</h3><p>Status: <b>'+(o.paid?'PAID':'UNPAID')+'</b></p><p>Thank you for your order!</p><button onclick="print()">Print or Save as PDF</button></body>');w.document.close()}};
 function act(k,i,n){A[n](S.L[k][i]);save();render()}
 
 /* ---------- scan bill ---------- */
@@ -336,7 +361,7 @@ function defDest(){return {check:'bill',groc:'h:Groceries',inv:'biz',cost:'biz',
 function openScan(){SC={dest:defDest(),bill:'Electricity bill',a:'',n:'',img:'',msg:'',ord:0};$('mod').classList.add('on');sheet(1)}
 function closeSc(){$('mod').classList.remove('on')}
 function sheet(st){var h='';
-if(st===1)h='<h3>Scan a Bill or Receipt</h3><p class="hint">Take a clear photo. The app reads it, suggests where it belongs, and you approve before anything is saved.</p><button class="btn" onclick="$(\'sc1\').click()">📷 Take Photo with Camera</button><button class="btn ghost" onclick="$(\'sc2\').click()">🖼️ Choose from Gallery</button><button class="btn ghost" onclick="sheet(2)">Fill in by hand</button><button class="btn red" onclick="closeSc()">Cancel</button><input id="sc1" type="file" accept="image/*" capture="environment" hidden onchange="pick(this)"><input id="sc2" type="file" accept="image/*" hidden onchange="pick(this)">';
+if(st===1)h='<h3>Scan a Bill or Receipt</h3><p class="hint">Take a clear photo. The app reads it, suggests where it belongs, and you approve before anything is saved.</p><button class="btn" onclick="$(\'sc1\').click()"> Take Photo with Camera</button><button class="btn ghost" onclick="$(\'sc2\').click()"> Choose from Gallery</button><button class="btn ghost" onclick="sheet(2)">Fill in by hand</button><button class="btn red" onclick="closeSc()">Cancel</button><input id="sc1" type="file" accept="image/*" capture="environment" hidden onchange="pick(this)"><input id="sc2" type="file" accept="image/*" hidden onchange="pick(this)">';
 else if(st===3)h='<h3>Reading your bill...</h3>'+(SC.img?'<img class="pv" src="'+SC.img+'" alt="Your bill">':'')+'<p class="hint">Please wait a few seconds. The first scan needs internet.</p>';
 else{var d=SC.dest;h='<h3>Check and Approve</h3>'+(SC.img?'<img class="pv" src="'+SC.img+'" alt="Your bill">':'')+(SC.msg?'<div class="news">'+esc(SC.msg)+'</div>':'')+'<label for="sd">Where does this belong?</label><select id="sd" onchange="SC.a=$(\'sa\').value;SC.n=$(\'sn\').value;SC.dest=this.value;sheet(2)">'+DEST.map(function(x){return '<option value="'+x[0]+'"'+(x[0]===d?' selected':'')+'>'+x[1]+'</option>'}).join('')+'</select>';
 if(d==='bill')h+='<label for="sb">Which bill?</label><select id="sb">'+BILLS.map(function(b){return '<option'+(b===SC.bill?' selected':'')+'>'+b+'</option>'}).join('')+'</select>';
@@ -362,13 +387,65 @@ var to='dash';
 if(d.indexOf('h:')===0){addTx('out',d.slice(2),a,n)}
 else if(d==='bill'){var bn=$('sb').value,o=S.L.check.filter(function(x){return x.name===bn})[0];if(!o){o={id:uid(),name:bn,amt:a};S.L.check.push(o);genPend()}o.amt=a;settle('check',o);to='check'}
 else if(d==='biz'){addTx('out','Business supplies',a,n,'b');to='bdash'}
-else if(d==='ord'){var so=$('so');if(!so){alert('Please add an order first, or choose another place.');return}S.L.orders[parseInt(so.value,10)].adv=nm(S.L.orders[parseInt(so.value,10)].adv)+a;to='orders'}
+else if(d==='ord'){var so=$('so');if(!so){alert('Please add an order first, or choose another place.');return}var od=S.L.orders[parseInt(so.value,10)];od.adv=nm(od.adv)+a;var rr={id:uid(),name:od.name,amt:a,date:today(),note:n,img:SC.img||'',oid:od.id,ol:od.item};S.L.rcpt.push(rr);if(!save()){rr.img='';save()}to='orders'}
 save();closeSc();go(to)}
 
+/* ---------- invoice share ---------- */
+function invMsg(o){return 'Assalam o Alaikum '+o.name+'! Here is your invoice from '+S.biz+'. Item: '+o.item+'. Amount: Rs '+Math.round(nm(o.amt))+'. Date: '+o.date+'. '+(o.paid?'Payment received, thank you!':'Payment is pending.')+' - '+S.biz}
+function invBytes(o){var c=[];function t(f,sz,x,y,tx,col){c.push('BT /'+f+' '+sz+' Tf '+(col||'0.23 0.21 0.31')+' rg '+x+' '+y+' Td ('+pEsc(tx)+') Tj ET')}
+var pk='0.64 0.28 0.36',mu='0.45 0.42 0.52';
+c.push('0.98 0.88 0.92 rg 0 730 595 112 re f');t('F2',24,40,790,S.biz,pk);if(S.prof.phone)t('F1',11,40,768,'WhatsApp: '+S.prof.phone,mu);t('F2',28,400,790,'INVOICE',pk);t('F1',10,400,768,'No. '+String(o.id||'').slice(-5).toUpperCase()+'   Date: '+o.date,mu);
+t('F1',10,40,690,'BILLED TO',mu);t('F2',16,40,670,o.name);if(o.phone)t('F1',11,40,652,o.phone,mu);
+c.push('0.93 0.96 0.99 rg 40 590 515 26 re f');t('F2',11,52,598,'Item or service');t('F2',11,470,598,'Amount');
+pWrap(o.item,60).slice(0,6).forEach(function(l,i){t('F1',12,52,566-i*16,l)});
+t('F1',12,470,566,'Rs '+Math.round(nm(o.amt)).toLocaleString('en-PK'));
+c.push('0.85 0.70 0.40 RG 1 w 40 470 m 555 470 l S');
+t('F2',16,330,440,'Total');t('F2',16,440,440,'Rs '+Math.round(nm(o.amt)).toLocaleString('en-PK'));
+t('F2',22,40,436,o.paid?'PAID':'UNPAID',o.paid?'0.18 0.55 0.34':'0.82 0.25 0.25');
+t('F1',12,40,380,'Thank you for your order!',mu);
+return pdfBytes([c],false)}
+/* ---------- receipts log ---------- */
+var RC={img:''};
+F.rcpt=function(){RC.img='';var tot=0;S.L.rcpt.forEach(function(r){tot+=nm(r.amt)});
+var h='<div class="grid"><div class="stat"><small>Receipts saved</small><b>'+S.L.rcpt.length+'</b></div><div class="stat"><small>Total received</small><b class="good">'+rs(tot)+'</b></div></div><div class="card"><h3>Add a payment receipt</h3>';
+if(allClients().length)h+='<label for="rcc">Select a client (optional)</label><select id="rcc" onchange="rcPick(this.value)"><option value="">Type a client name below</option>'+allClients().map(function(c,i){return '<option value="'+i+'">'+esc(c.name)+'</option>'}).join('')+'</select>';
+h+='<label for="rcn">Client name</label><input id="rcn"><label for="rcs">Which order is this payment for? (optional)</label><select id="rcs" onchange="rcOrd(this.value)"><option value="">Not linked to an order</option>'+S.L.orders.map(function(o,i){return '<option value="'+i+'">'+esc(o.name+' - '+o.item+' (balance '+rs(bal(o))+')')+'</option>'}).join('')+'</select>';
+h+='<label for="rca">Amount paid (Rs)</label><input id="rca" type="number" inputmode="decimal" min="0"><label for="rcd">Date</label><input id="rcd" type="date" value="'+today()+'"><label for="rcm">Note (optional)</label><input id="rcm" placeholder="e.g. Easypaisa, bank transfer, cash">';
+h+='<label>Photo of the receipt</label><div class="acts"><button class="btn sm wa" onclick="$(\'rp1\').click()">Take Photo</button><button class="btn sm ghost" onclick="$(\'rp2\').click()">Choose from Gallery</button></div><input id="rp1" type="file" accept="image/*" capture="environment" hidden onchange="rcPhoto(this)"><input id="rp2" type="file" accept="image/*" hidden onchange="rcPhoto(this)"><div id="rpv"></div>';
+h+='<label id="rcw" style="display:none;align-items:center;gap:8px;margin-top:14px;color:var(--ink)"><input type="checkbox" id="rck" checked style="width:auto"> Also add this amount to the order\'s payment</label><button class="btn" onclick="saveRc()">Save Receipt</button></div><div class="card"><h3>Receipts log</h3>';
+if(!S.L.rcpt.length)h+='<div class="empty">No receipts yet. Add the first one above.</div>';
+S.L.rcpt.map(function(r,i){return{r:r,i:i}}).reverse().forEach(function(x){var r=x.r;h+='<div class="row"><div class="rt">'+(r.img?'<img src="'+r.img+'" alt="Receipt" style="width:58px;height:58px;object-fit:cover;border-radius:10px;flex:none;cursor:pointer" onclick="viewRc('+x.i+')">':'')+'<div class="l"><b>'+esc(r.name)+'</b><small>'+r.date+(r.ol?' - for '+esc(r.ol):'')+(r.note?' - '+esc(r.note):'')+'</small></div><div class="r good">'+rs(r.amt)+'</div></div><div class="acts">'+(r.img?'<button class="btn sm ghost" onclick="viewRc('+x.i+')">View Photo</button>':'')+'<button class="btn sm red" onclick="delRc('+x.i+')">Delete</button></div></div>'});
+return h+'</div>'};
+function rcPick(i){var c=allClients()[i];if(i===''||!c)return;$('rcn').value=c.name}
+function rcOrd(v){var o=S.L.orders[parseInt(v,10)];$('rcw').style.display=o?'flex':'none';if(!o)return;$('rcn').value=o.name;if(!$('rca').value)$('rca').value=Math.round(bal(o))||''}
+function rcPhoto(inp){var f=inp.files&&inp.files[0];if(!f)return;var im=new Image();im.onerror=function(){alert('Could not open that photo. Please try another.')};
+im.onload=function(){var k=Math.min(1,800/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);c.getContext('2d').drawImage(im,0,0,c.width,c.height);RC.img=c.toDataURL('image/jpeg',.6);$('rpv').innerHTML='<img class="pv" src="'+RC.img+'" alt="Receipt photo"><div class="acts" style="justify-content:center"><button class="btn sm red" onclick="RC.img=\'\';$(\'rpv\').innerHTML=\'\'">Remove Photo</button></div>'};im.src=URL.createObjectURL(f)}
+function saveRc(){var a=nm($('rca').value),n=$('rcn').value.trim();if(!n){alert('Please enter the client name.');return}if(a<=0){alert('Please enter the amount paid.');return}
+if(!RC.img&&!confirm('No photo added. Save this payment without a photo?'))return;
+var ov=$('rcs').value,o=ov!==''?S.L.orders[parseInt(ov,10)]:null,r={id:uid(),name:n,amt:a,date:$('rcd').value||today(),note:$('rcm').value.trim(),img:RC.img,oid:o?o.id:'',ol:o?o.item:''},added=0;
+S.L.rcpt.push(r);if(o&&$('rck').checked){o.adv=nm(o.adv)+a;added=1}
+if(!save()){S.L.rcpt.pop();if(added)o.adv=nm(o.adv)-a;alert('This phone has no space left for the app. Save without a photo, or delete old receipt photos first.');return}
+RC.img='';render()}
+function viewRc(i){var r=S.L.rcpt[i];if(!r)return;$('sheet').innerHTML='<h3>'+esc(r.name)+' - '+rs(r.amt)+'</h3><p class="hint">'+r.date+(r.ol?' - for '+esc(r.ol):'')+(r.note?' - '+esc(r.note):'')+'</p><img src="'+r.img+'" alt="Receipt photo" style="width:100%;border-radius:12px;margin-top:10px"><button class="btn red" onclick="closeSc()">Close</button>';$('mod').classList.add('on')}
+function delRc(i){if(confirm('Delete this receipt from the log? The order payment will not change.')){S.L.rcpt.splice(i,1);save();render()}}
 /* ---------- PDF export ---------- */
 function pSafe(t){return String(t==null?'':t).replace(/[\u2018\u2019]/g,"'").replace(/[\u201c\u201d]/g,'"').replace(/[\u2013\u2014]/g,'-').replace(/\u2022/g,'-').replace(/[^\x20-\x7e\xa0-\xff]/g,'?')}
 function pEsc(t){return pSafe(t).replace(/\\/g,'\\\\').replace(/\(/g,'\\(').replace(/\)/g,'\\)')}
 function pWrap(t,n){var w=pSafe(t).split(/\s+/),l=[],c='';w.forEach(function(x){while(x.length>n){if(c){l.push(c);c=''}l.push(x.slice(0,n));x=x.slice(n)}if(!c)c=x;else if((c+' '+x).length<=n)c+=' '+x;else{l.push(c);c=x}});if(c)l.push(c);return l}
+function pdfBytes(pages,foot){var W=595,H=842;var n=pages.length,objs=[],kids=[];
+objs.push('<< /Type /Catalog /Pages 2 0 R >>');
+for(var i=0;i<n;i++)kids.push((6+2*i)+' 0 R');
+objs.push('<< /Type /Pages /Kids ['+kids.join(' ')+'] /Count '+n+' >>');
+['Helvetica','Helvetica-Bold','Courier'].forEach(function(f){objs.push('<< /Type /Font /Subtype /Type1 /BaseFont /'+f+' /Encoding /WinAnsiEncoding >>')});
+pages.forEach(function(p,i){if(foot)p.push('BT /F1 8 Tf 0.45 0.42 0.52 rg '+(W/2-30)+' 22 Td (Page '+(i+1)+' of '+n+') Tj ET');var c=p.join('\n');
+objs.push('<< /Type /Page /Parent 2 0 R /MediaBox [0 0 '+W+' '+H+'] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents '+(7+2*i)+' 0 R >>');
+objs.push('<< /Length '+c.length+' >>\nstream\n'+c+'\nendstream')});
+var out='%PDF-1.4\n',offs=[];objs.forEach(function(b,i){offs.push(out.length);out+=(i+1)+' 0 obj\n'+b+'\nendobj\n'});
+var xr=out.length;out+='xref\n0 '+(objs.length+1)+'\n0000000000 65535 f \n';offs.forEach(function(o){out+=('0000000000'+o).slice(-10)+' 00000 n \n'});
+out+='trailer\n<< /Size '+(objs.length+1)+' /Root 1 0 R >>\nstartxref\n'+xr+'\n%%EOF';
+var by=new Uint8Array(out.length);for(var k=0;k<out.length;k++)by[k]=out.charCodeAt(k)&255;
+return by}
+function dlBytes(by,name){var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([by],{type:'application/pdf'}));a.download=name;document.body.appendChild(a);a.click();a.remove()}
 function exportPdf(){
 var W=595,H=842,M=40,CW=5.4,NC=Math.floor((W-2*M)/CW),pages=[],cur,y;
 function np(){cur=[];pages.push(cur);y=H-M}
@@ -386,29 +463,18 @@ h2('Home - this month');rec('Income',rs(s.i));rec('Spent',rs(s.e));rec('Left ove
 h2('Home - all income and expenses');if(!txh.length)none();txh.forEach(function(t){rec(t.d+'  '+t.c,(t.t==='in'?'+':'-')+rs(t.a),t.n)});
 var rev=0,adv=0,pen=0,ud=0,bx=0;L.orders.forEach(function(o){rev+=nm(o.total);adv+=nm(o.adv);pen+=bal(o)});L.udh.forEach(function(o){ud+=nm(o.amt)});txb.forEach(function(t){bx+=t.a});
 h2('Business - summary');rec('Total orders',String(L.orders.length));rec('Total sales',rs(rev));rec('Money received',rs(adv));rec('Still to receive',rs(pen));rec('Pending client payments',rs(ud));rec('Business spending',rs(bx));
-h2('Business - customer orders');if(!L.orders.length)none();L.orders.forEach(function(o){rec(o.name+' - '+o.item,rs(o.total),(o.done?'Delivered':'Pending')+' | Advance '+rs(o.adv)+' | Balance '+rs(bal(o))+(o.city?' | '+o.city:'')+(o.phone?' | '+o.phone:''))});
+h2('Business - customer orders');if(!L.orders.length)none();L.orders.forEach(function(o){rec(o.name+' - '+o.item,rs(o.total),'Payment: '+(bal(o)>0?'Balance '+rs(bal(o))+' pending (paid '+rs(o.adv)+')':'Paid in full')+' | Delivery: '+(o.done?'Delivered':'Not delivered yet')+(o.city?' | '+o.city:'')+(o.phone?' | '+o.phone:''))});
 h2('Business - spending');if(!txb.length)none();txb.forEach(function(t){rec(t.d+'  '+t.c,rs(t.a),t.n)});
 h2('Clients info');if(!L.cust.length)none();L.cust.forEach(function(c){rec(c.name,c.phone||'',[c.city,c.note].filter(Boolean).join(' | '))});
-h2('Pending payments from clients');if(!L.udh.length)none();L.udh.forEach(function(o){rec(o.name,rs(o.amt),[o.note,o.phone].filter(Boolean).join(' | '))});
+h2('Pending payments from clients');if(!L.udh.length)none();L.udh.forEach(function(o){rec(o.name,nm(o.amt)>0?rs(o.amt):'Paid',[o.note,o.phone].filter(Boolean).join(' | '))});
 h2('Monthly bills checklist');if(!L.check.length)none();L.check.forEach(function(o){rec(o.name,rs(o.amt),o.paid===mk()?'Paid this month':'Not paid this month')});
 h2('Monthly grocery list');if(!L.groc.length)none();L.groc.forEach(function(o){rec(o.name,rs(o.amt),o.qty)});
 h2('Savings goals');if(!L.goals.length)none();L.goals.forEach(function(o){rec(o.name,rs(o.saved)+' of '+rs(o.target))});
-h2('Committee (BC)');if(!L.bc.length)none();L.bc.forEach(function(o){rec(o.name,rs(o.amt)+' x '+o.mem,'Your turn: month '+o.turn)});
+h2('Committee');if(!L.bc.length)none();L.bc.forEach(function(o){rec(o.name,rs(o.amt)+' x '+o.mem,'Your turn: month '+o.turn)});
 h2('Product costing');if(!L.cost.length)none();L.cost.forEach(function(o){var c=cost(o);rec(o.name,'Profit '+rs(nm(o.price)-c),'Cost '+rs(c)+' | Selling price '+rs(o.price))});
 h2('Raw material stock');if(!L.inv.length)none();L.inv.forEach(function(o){rec(o.name,o.qty+' '+(o.unit||''),'Alert below '+o.min)});
-h2('Invoices');if(!L.invo.length)none();L.invo.forEach(function(o){rec(o.name+' - '+o.item,rs(o.amt),o.date)});
-var n=pages.length,objs=[],kids=[];
-objs.push('<< /Type /Catalog /Pages 2 0 R >>');
-for(var i=0;i<n;i++)kids.push((6+2*i)+' 0 R');
-objs.push('<< /Type /Pages /Kids ['+kids.join(' ')+'] /Count '+n+' >>');
-['Helvetica','Helvetica-Bold','Courier'].forEach(function(f){objs.push('<< /Type /Font /Subtype /Type1 /BaseFont /'+f+' /Encoding /WinAnsiEncoding >>')});
-pages.forEach(function(p,i){p.push('BT /F1 8 Tf 0.45 0.42 0.52 rg '+(W/2-30)+' 22 Td (Page '+(i+1)+' of '+n+') Tj ET');var c=p.join('\n');
-objs.push('<< /Type /Page /Parent 2 0 R /MediaBox [0 0 '+W+' '+H+'] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents '+(7+2*i)+' 0 R >>');
-objs.push('<< /Length '+c.length+' >>\nstream\n'+c+'\nendstream')});
-var out='%PDF-1.4\n',offs=[];objs.forEach(function(b,i){offs.push(out.length);out+=(i+1)+' 0 obj\n'+b+'\nendobj\n'});
-var xr=out.length;out+='xref\n0 '+(objs.length+1)+'\n0000000000 65535 f \n';offs.forEach(function(o){out+=('0000000000'+o).slice(-10)+' 00000 n \n'});
-out+='trailer\n<< /Size '+(objs.length+1)+' /Root 1 0 R >>\nstartxref\n'+xr+'\n%%EOF';
-var by=new Uint8Array(out.length);for(var k=0;k<out.length;k++)by[k]=out.charCodeAt(k)&255;
-var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([by],{type:'application/pdf'}));a.download='my-expense-tracker-data.pdf';document.body.appendChild(a);a.click();a.remove()}
+h2('Invoices');if(!L.invo.length)none();L.invo.forEach(function(o){rec(o.name+' - '+o.item,rs(o.amt),o.date+' | '+(o.paid?'Paid':'Unpaid'))});
+h2('Payment receipts log');if(!L.rcpt.length)none();L.rcpt.slice().reverse().forEach(function(r){rec(r.date+'  '+r.name,rs(r.amt),[r.ol?'For: '+r.ol:'',r.note,r.img?'Receipt photo saved in the app':'No photo'].filter(Boolean).join(' | '))});
+var by=pdfBytes(pages,true);dlBytes(by,'my-expense-tracker-data.pdf')}
 showAuth();
 </script></body></html>
